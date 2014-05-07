@@ -18,7 +18,7 @@ function Install-Node
     Param
     (
         [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
-        [ValidateScript({(Get-AllNodeVersions) -contains "v$($_)" -or $_ -eq "latest" })]
+        [ValidateScript({(Get-NodeVersion -ListOnline) -contains "v$($_)" -or $_ -eq "latest" })]
         [String]$Version = "latest"
     )
     
@@ -42,7 +42,33 @@ function Set-NodeVersion
 
 function Get-NodeVersion
 {
-    Write-Output (node -v)
+    [CmdletBinding(DefaultParameterSetName="InstalledVersions")]
+    Param
+    (
+        [Parameter(ParameterSetName="InstalledVersions")]
+        [Switch]$ListInstalled,
+        [Parameter(Mandatory=$false,ParameterSetName="OnlineVersions")]
+        [Switch]$ListOnline      
+    )
+
+    if($PSCmdlet.ParameterSetName -eq "InstalledVersions")
+    {
+        if($ListInstalled -eq $true){
+            $Output =  ((ls "$($nvmHome)" -Directory -Filter "v*").Name)
+            $Output += "latest -> $(node -v)"
+        }
+        else{
+            $Output = (node -v)
+        }
+    }
+    elseif($PSCmdlet.ParameterSetName -eq "OnlineVersions")
+    {
+        if($ListOnline -eq $true){
+            $Output = Get-AllNodeVersions
+        }
+    }
+
+    Write-Output $Output
 }
 
 function Get-AllNodeVersions
@@ -50,23 +76,18 @@ function Get-AllNodeVersions
     [CmdletBinding()]
     Param
     ()
-    Begin
-    {   
-        $nodeVPage = (Fetch-HTTP -Uri "$($nodeDist)").Content
-    }
-    Process
-    {
-        $versionMatch = [regex]::Matches($nodeVPage, '<a\s*href="(?<Node>v[\d]+\.[\d]+.[\d]+)/\s*"\s*>')
 
-        $npmVersions = @();
+    if($script:npmVersions.Count -eq 0){
+        $script:npmVersion = @()
 
-        foreach($vers in $versionMatch){
-            $npmVersions += $vers.Groups["Node"].Value      
+        $nodeVPage = (Fetch-HTTP -Uri "$($nodeDist)").Content        
+        
+        foreach($nodeVersion in ([regex]::Matches($nodeVPage, '<a\s*href="(?<Node>v[\d]+\.[\d]+.[\d]+)/\s*"\s*>'))){
+            $script:npmVersions += $nodeVersion.Groups["Node"].Value      
         }
-
-        Write-Output $npmVersions
     }
-    End {}    
+        
+    Write-Output $script:npmVersions
 }
 
 #To implement
