@@ -97,9 +97,8 @@ function Get-EnvironmentVar
         [Parameter(Mandatory=$true)]
         [String]$Variable,
         [ValidateSet("User", "Machine", "Process")]
-        [String]$Target
+        [String]$Target="Process"
     )
-    $Target = @{$true="Process";$false=$Target}[$Target -eq $null -or $Target -eq ""]
     Write-Output ([System.Environment]::GetEnvironmentVariable($Variable, $Target))
  }
 
@@ -113,22 +112,11 @@ function Set-EnvironmentVar
         [Parameter(Mandatory=$true)]
         [String]$Value,
         [ValidateSet("User", "Machine", "Process")]
-        [String]$Target
+        [String]$Target="Process"
     )
 
-    Begin
-    {
-        $Target = @{$true="Process";$false=$Target}[$Target -eq $null -or $Target -eq ""]
-    }
-    Process
-    {
-        [System.Environment]::SetEnvironmentVariable($Variable, $Value, $Target)
-    }
-    End
-    {
-        Write-Output (Get-EnvironmentVar $Variable $Target)
-    }
-    
+    [System.Environment]::SetEnvironmentVariable($Variable, $Value, $Target)
+    Write-Output (Get-EnvironmentVar $Variable $Target)
  }
 
 function curl
