@@ -2,14 +2,93 @@
 #Set nvmHome to  C:\Program Files\nodejs
 [String] $nvmHome = "C:\PSNodeJS\"
 [String] $nodeDist = "http://nodejs.org/dist/"
-[String] $npmDist = "$nodeDist/npm/"
+[String] $npmDist = "https://registry.npmjs.org/npm"
 [String] $nodeExe = "node.exe"
+[String] $nodeVersionFile = "npm-versions.txt"
 [String] $OSArch = ""
-$npmVersions = @()
+
+[Array] $npmVersions = @()
 
 #Temporary variable
 [String] $Version = "latest/"
 
+function Install-Node 
+{
+    [CmdletBinding()]
+    Param
+    (
+        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
+        [ValidateScript({(Get-AllNodeVersions) -contains "v$($_)" -or $_ -eq "latest" })]
+        [String]$Version = "latest"
+    )
+    
+    $versionCopy = @{$true="latest/"; $false="v$($Version)/"}[$Version -eq "latest"]        
+
+    if((Test-Path "$($nvmHome)$($versionCopy)") -eq $false){
+        New-Item "$($nvmHome)$($versionCopy)" -ItemType Directory | Out-Null
+    }    
+    
+    curl -Uri "$($nodeDist)$($versionCopy)$($OSArch)$($nodeExe)" -OutFile "$($nvmHome)$($versionCopy)$($nodeExe)"
+}
+
+function Update-Node
+{
+    Install-Node
+}
+
+function Set-NodeVersion
+{
+}
+
+function Get-NodeVersion
+{
+    Write-Output (node -v)
+}
+
+function Get-AllNodeVersions
+{
+    [CmdletBinding()]
+    Param
+    (
+
+    )
+    Begin
+    {   
+        $nodeVPage = (curl -Uri "$($nodeDist)").Content
+    }
+    Process
+    {
+        $versionMatch = [regex]::Matches($nodeVPage, '<a\s*href="(?<Node>v[\d]+\.[\d]+.[\d]+)/\s*"\s*>')
+
+        $npmVersions = @();
+
+        foreach($vers in $versionMatch){
+            $npmVersions += $vers.Groups["Node"].Value      
+        }
+
+        Write-Output $npmVersions
+    }
+    End {}    
+}
+
+#To implement
+function Start-Node{
+    node $args
+}
+
+function Install-Npm
+{
+   if((Test-Path "$($nvmHome)node_modules\npm\bin\npm-cli.js") -eq $false)
+   {
+        $npmInfo = (ConvertFrom-Json -InputObject (curl $npmDist))        
+
+        #Unzip-Archive -Source "$($nvmHome)npm-1.4.9.zip" -Destination $nvmHome
+   }
+}
+
+#---------------------------------------------------------
+# Helper functions
+#---------------------------------------------------------
 function Get-EnvironmentVar
 {
     [CmdletBinding()]
@@ -52,81 +131,54 @@ function Set-EnvironmentVar
     
  }
 
-function Install-Node 
+function curl
 {
     [CmdletBinding()]
     Param
     (
-        [ValidateScript({
-            
-        })]
-
-        [String]$Version = ""
+        [Parameter(Mandatory=$true)]
+        [String]$Uri,
+        [Parameter(Mandatory=$true)]
+        [String]$OutFile
     )
-
-    $Version = @{$true="latest/"; $false="$Version"}[$Version -eq $null -or $Version -eq ""]
-
-    if((Test-Path "$($nvmHome)$($version)") -eq $false){
-        New-Item "$($nvmHome)$($version)" -ItemType Directory | Out-Null
-    }
-
     if($env:HTTP_PROXY -eq $null){
-        curl "$($nodeDist)$($Version)$($OSArch)$($nodeExe)" -OutFile "$($nvmHome)$($Version)$($nodeExe)"
+        Invoke-WebRequest -Uri $Uri -OutFile $OutFile
     }
     else{
-        curl "$($nodeDist)$($Version)$($OSArch)$($nodeExe)" -OutFile "$($nvmHome)$($Version)$($nodeExe)" -Proxy $env:HTTP_PROXY
+        Invoke-WebRequest -Uri $Uri -OutFile $OutFile  -Proxy $env:HTTP_PROXY
     }
 }
 
-function Update-Node
+function Unzip-Archive
 {
-    Install-Node
-}
-
-function Change-Node
-{
-}
-
-function Parse-VersionNumber
-{
+    [CmdletBinding()]
     Param
     (
-        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$")]
-        [ValidateScript({ $npmVersions.Node -contains "v$($_)" })]
-        [String]$Version
+        [Parameter(Mandatory=$true)]
+        [ValidateScript({ Test-Path $_ })]
+        [String]$Source,
+        [ValidateScript({ Test-Path $_ })]
+        [String]$Destination = (Get-Location).Path
     )
 
-    Write-Output $Version
+    Unblock-File $Source
+
+    Add-Type -AssemblyName  System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory(((ls $Source).FullName), $Destination)
 }
 
-function Return-Versions
-{
-    Write-Output $npmVersions
-}
+#---------------------------------------------------------
+# Aliases
+#---------------------------------------------------------
+Set-Alias -Name cat -Value Get-Content -option AllScope
 
-#To implement
-function Start-Node{
-    node $args
-}
-
-#NPM wrapper function that start npm in node with args
-function npm 
-{
-    node "$($nvmHome)\node_modules\npm\bin\npm-cli.js" $args
-}
-
-
-#Set alias in module so curl always references to Invoke-WebRequest
-Set-Alias -Name curl -Value Invoke-WebRequest -Option AllScope
-set-alias -Name cat -Value Get-Content -option AllScope
-Set-Alias -Name node -Value "$($nvmHome)$($Version)$($nodeExe)"
-
-#Run Prereq Test
+#---------------------------------------------------------
+# Prereq Tests
+#---------------------------------------------------------
 if((Get-EnvironmentVar CurNodeVer Machine) -eq $null)
 {
-    #Set-EnvironmentVar "CurNodeVer" "latest" "Machine"
-    #$env:CurNodeVer = "latest"
-    Write-Output "var not created"
+    Set-EnvironmentVar "CurNodeVer" "latest" "User"
+    $env:CurNodeVer = "latest"
 }
 
 if((Test-Path $nvmHome) -eq $false)
@@ -138,23 +190,20 @@ if((Get-WmiObject Win32_OperatingSystem).OSArchitecture -eq "64-Bit")
 {
     $OSArch = "x64/"
 }
-    
-$matchedV = [regex]::Matches((cat .\npm-versions.txt), "(?<Node>v[\d]+\.[\d]+.[\d]+)\s(?<NPM>[\d]+\.[\d]+.[\d]+)")
 
-foreach($m in $matchedV){
-    $npmVersions += (@{ "Node"=$m.Groups["Node"].Value; "NPM"=$m.Groups["NPM"].Value })      
-}
+Install-Npm
+
 #-------------------------------------------------
-
-#Set-Alias -Name npm -Value "$($nvmHome)npm.cmd"
-
-#Export functions, vars ans alias
+# Export global functions values and aliases
+#---------------------------------------------------------
 Export-ModuleMember -Function Install-Node
 Export-ModuleMember -Function Update-Node
-Export-ModuleMember -Function Change-Node
+Export-ModuleMember -Function Set-Node
 Export-ModuleMember -Function Start-Node
-Export-ModuleMember -Function Return-Versions
-Export-ModuleMember -Function Parse-VersionNumber
+Export-ModuleMember -Function Get-NodeVersion
+Export-ModuleMember -Function Set-NodeVersion
+Export-ModuleMember -Function Get-AllNodeVersions
+#---------------------------------------------------------
 
 #Make sure everything is installed on local drive
 #previously used $home to install to local dir
@@ -163,7 +212,3 @@ Export-ModuleMember -Function Parse-VersionNumber
 # -> decided to use a predifined dir on the c:/ drive -> find a better way and location to be sure that i don't install on share and do not need c root dir
 
 #find a way to introduce npmrc -> to point list -g to appdata roaming dir -> this is also used by default node installer
-Export-ModuleMember -Alias node
-Export-ModuleMember -Function npm
-
-Export-ModuleMember -Variable npmVersions
