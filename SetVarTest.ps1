@@ -1,22 +1,18 @@
-﻿$e = "C:\Windows\system32\WindowsPowerShell\v1.0\;C:\Python34\;C:\Python34\Scripts;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\PROGRA~1\IBM\SQLLIB\BIN;C:\PROGRA~1\IBM\SQLLIB\FUNCTION;C:\Program Files (x86)\Belgium Identity Card;C:\Program Files (x86)\Microsoft SQL Server\100\Tools\Binn\;C:\Program Files\Microsoft SQL Server\100\Tools\Binn\;C:\Program Files\Microsoft SQL Server\100\DTS\Binn\;C:\Program Files (x86)\Microsoft SQL Server\100\Tools\Binn\VSShell\Common7\IDE\;C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\PrivateAssemblies\;C:\Program Files (x86)\Microsoft SQL Server\100\DTS\Binn\;C:\Program Files\Microsoft Windows Performance Toolkit\;C:\Program Files (x86)\IBM\WebSphere MQ\bin64;C:\Program Files (x86)\IBM\WebSphere MQ\bin;C:\Program Files (x86)\IBM\WebSphere MQ\tools\c\samples\bin;C:\Program Files (x86)\Microsoft Team Foundation Server 2010 Power Tools\;C:\Program Files (x86)\Microsoft Team Foundation Server 2010 Power Tools\Best Practices Analyzer\;C:\Program Files (x86)\ZANTAZ\EAS Outlook Addin\bin;C:\Program Files\Microsoft\Web Platform Installer\;C:\Program Files (x86)\Microsoft ASP.NET\ASP.NET Web Pages\v1.0\;C:\Program Files (x86)\Windows Kits\8.0\Windows Performance Toolkit\;C:\Program Files\Microsoft SQL Server\110\Tools\Binn\;C:\Program Files (x86)\Microsoft Application Virtualization Client;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\Git\bin;C:\Program Files\nodejs"
-#$e = "C:\Windows\system32\WindowsPowerShell\v1.0\;C:\Python34\;C:\Python34\Scripts;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\PROGRA~1\IBM\SQLLIB\BIN;C:\PROGRA~1\IBM\SQLLIB\FUNCTION;C:\Program Files (x86)\Belgium Identity Card;C:\Program Files (x86)\Microsoft SQL Server\100\Tools\Binn\;C:\Program Files\Microsoft SQL Server\100\Tools\Binn\;C:\Program Files\Microsoft SQL Server\100\DTS\Binn\;C:\Program Files (x86)\Microsoft SQL Server\100\Tools\Binn\VSShell\Common7\IDE\;C:\Program Files (x86)\Microsoft Visual Studio 9.0\Common7\IDE\PrivateAssemblies\;C:\Program Files (x86)\Microsoft SQL Server\100\DTS\Binn\;C:\Program Files\Microsoft Windows Performance Toolkit\;C:\Program Files (x86)\IBM\WebSphere MQ\bin64;C:\Program Files (x86)\IBM\WebSphere MQ\bin;C:\Program Files (x86)\IBM\WebSphere MQ\tools\c\samples\bin;C:\Program Files (x86)\Microsoft Team Foundation Server 2010 Power Tools\;C:\Program Files (x86)\Microsoft Team Foundation Server 2010 Power Tools\Best Practices Analyzer\;C:\Program Files (x86)\ZANTAZ\EAS Outlook Addin\bin;C:\Program Files\Microsoft\Web Platform Installer\;C:\Program Files (x86)\Microsoft ASP.NET\ASP.NET Web Pages\v1.0\;C:\Program Files (x86)\Windows Kits\8.0\Windows Performance Toolkit\;C:\Program Files\Microsoft SQL Server\110\Tools\Binn\;C:\Program Files (x86)\Microsoft Application Virtualization Client;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\Git\bin;H:\NodeJS"
-
- function Get-EnvironmentVar
- {
+﻿function Get-EnvironmentVar
+{
     [CmdletBinding()]
     Param
     (
         [Parameter(Mandatory=$true)]
         [String]$Variable,
         [ValidateSet("User", "Machine", "Process")]
-        [String]$Target
+        [String]$Target="Process"
     )
-    $Target = @{$true="Process";$false=$Target}[$Target -eq $null -or $Target -eq ""]
     Write-Output ([System.Environment]::GetEnvironmentVariable($Variable, $Target))
  }
 
- function Set-EnvironmentVar
- {
+function Set-EnvironmentVar
+{
     [CmdletBinding()]
     Param
     (
@@ -25,23 +21,51 @@
         [Parameter(Mandatory=$true)]
         [String]$Value,
         [ValidateSet("User", "Machine", "Process")]
-        [String]$Target
+        [String]$Target="Process"
     )
-
-    Begin
-    {
-        $Target = @{$true="Process";$false=$Target}[$Target -eq $null -or $Target -eq ""]
-    }
-    Process
-    {
-        [System.Environment]::SetEnvironmentVariable($Variable, $Value, $Target)
-    }
-    End
-    {
-        Write-Output (Get-EnvironmentVar $Variable $Target)
-    }
-    
+    [System.Environment]::SetEnvironmentVariable($Variable, $Value, $Target)
+    Write-Output (Get-EnvironmentVar $Variable $Target)
  }
 
+function Get-Path
+{
+    Param
+    (
+        [ValidateSet("User", "Machine", "Process")]
+        [String]$Target="Process"
+    )
+    Write-Output ((Get-EnvironmentVar Path $Target) -split ";")
+}
 
-Set-EnvironmentVar "PATH" $e "Machine"
+function Set-Path
+{
+    Param
+    (
+        [Parameter(Mandatory=$true)]
+        [String]$PathVar,
+        [Parameter(Mandatory=$false)]
+        [String]$Value = $PathVar,
+        [ValidateSet("User", "Machine", "Process")]
+        [String]$Target="Process"
+    )
+
+    #Comma in ArrayList constructor is to prevent powershell to add an unpacked array
+    #Powershell natively unpacks an array the , in powershell is an array constructor
+    #So what internally happens i guess is that powershell unpacks the array and reassambles it again
+    $Path = New-Object System.Collections.ArrayList(,(Get-Path -Target $Target))
+
+    if(($Index = $Path.IndexOf($PathVar)) -ge 0){
+        
+        $Path[$Index] = $Value
+        Write-Output $Index
+    }else{
+        $Path.Add($Value);
+    }
+
+    $Path.Remove("")
+    
+    $Path | Write-Output
+}
+
+#Get-Path
+Set-Path "C:\PSNodeJS\"

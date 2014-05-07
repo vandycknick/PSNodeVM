@@ -133,7 +133,6 @@ function Set-EnvironmentVar
         [ValidateSet("User", "Machine", "Process")]
         [String]$Target="Process"
     )
-
     [System.Environment]::SetEnvironmentVariable($Variable, $Value, $Target)
     Write-Output (Get-EnvironmentVar $Variable $Target)
  }
@@ -175,6 +174,42 @@ function Unzip-Archive
     [System.IO.Compression.ZipFile]::ExtractToDirectory(((ls $Source).FullName), $Destination)
 }
 
+function Get-Path
+{
+    Param
+    (
+        [ValidateSet("User", "Machine", "Process")]
+        [String]$Target="Process"
+    )
+
+    $Path = ((Get-EnvironmentVar Path $Target) -split ";")
+
+    Write-Output $Path
+}
+
+function Set-Path
+{
+    Param
+    (
+        [Parameter(Mandatory=$true)]
+        [String]$PathVar,
+        [Parameter(Mandatory=$true)]
+        [String]$Value,
+        [ValidateSet("User", "Machine", "Process")]
+        [String]$Target="Process"
+    )
+
+    $Path = Get-Path -Target $Target
+
+    foreach($p in $Path){
+        if($p -eq $PathVar){
+            $p = $Value
+        }
+    }
+
+    Write-Output $Path
+}
+
 #---------------------------------------------------------
 # Aliases
 #---------------------------------------------------------
@@ -196,7 +231,7 @@ if((Test-Path $nvmHome) -eq $false)
 
 if((Get-WmiObject Win32_OperatingSystem).OSArchitecture -eq "64-Bit")
 {
-    $OSArch = "x64/"
+    $script:OSArch = "x64/"
 }
 
 Install-Npm
