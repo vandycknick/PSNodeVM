@@ -82,8 +82,10 @@ function Get-AllNodeVersions
 
         $nodeVPage = (Fetch-HTTP -Uri "$($nodeDist)").Content        
         
-        foreach($nodeVersion in ([regex]::Matches($nodeVPage, '<a\s*href="(?<Node>v[\d]+\.[\d]+.[\d]+)/\s*"\s*>'))){
-            $script:npmVersions += $nodeVersion.Groups["Node"].Value      
+        $regex = '<a\s*href="(?<NodeV>(?:v[\d]{1,3}(?:.[\d]{1,3}){2})|(?:latest))\/\s*"\s*>'
+
+        foreach($nodeVersion in ([regex]::Matches($nodeVPage, $regex))){
+            $script:npmVersions += $nodeVersion.Groups["NodeV"].Value      
         }
     }
         
