@@ -119,7 +119,7 @@ function Install-Npm
    if((Test-Path "$($config.NodeHome)node_modules\npm\bin\npm-cli.js") -eq $false)
    {
         $npmInfo = (ConvertFrom-Json -InputObject (Fetch-HTTP $config.NPMWeb))        
-
+        # https://registry.npmjs.org/npm/-/npm-1.4.10.tgz
         #Unzip-Archive -Source "$($nvmHome)npm-1.4.9.zip" -Destination $nvmHome        
    }
 
@@ -177,6 +177,9 @@ function Setup-PSNodeJSManagerEnvironment
     
     Write-Verbose "Copy $PSScriptRoot\Config\npm.cmd to $($config.NodeHome)"
     Copy-Item "$PSScriptRoot\Config\npm.cmd" $config.NodeHome
+
+    Write-Verbose "Copy $PSScriptRoot\Config\npmrc to $($config.NodeHome)node_modules\npm"
+    Copy-Item "$PSScriptRoot\Config\npmrc" "$($config.NodeHome)node_modules\npm"
 
     if((Get-Path -Target User) -notcontains $config.NodeHome)
     {
