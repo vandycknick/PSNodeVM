@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PSNodeJSManager>
+	<NodeHome>C:\PSNodeJS\</NodeHome>
+	<NodeWeb>http://nodejs.org/dist/</NodeWeb>
+	<NPMWeb>http://registry.npmjs.org/npm</NPMWeb>
+	<OSArch></OSArch>
+</PSNodeJSManager>

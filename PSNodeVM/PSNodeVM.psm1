@@ -1,16 +1,10 @@
 ﻿#Set default constant vars
 #Set nvmHome to  C:\Program Files\nodejs
-[String] $nvmHome = "C:\PSNodeJS\"
-[String] $nodeDist = "http://nodejs.org/dist/"
-[String] $npmDist = "https://registry.npmjs.org/npm"
+
+$config = (Import-PSNodeJSManagerConfig).PSNodeJSManager
+
 [String] $nodeExe = "node.exe"
-[String] $nodeVersionFile = "npm-versions.txt"
-[String] $OSArch = ""
-
 [Array] $npmVersions = @()
-
-#Temporary variable
-[String] $Version = "latest/"
 
 function Install-Node 
 {
@@ -21,14 +15,28 @@ function Install-Node
         [ValidateScript({(Get-NodeVersion -ListOnline) -contains "v$($_)" -or $_ -eq "latest" })]
         [String]$Version = "latest"
     )
-    
-    $versionCopy = @{$true="latest/"; $false="v$($Version)/"}[$Version -eq "latest"]        
 
-    if((Test-Path "$($nvmHome)$($versionCopy)") -eq $false){
-        New-Item "$($nvmHome)$($versionCopy)" -ItemType Directory | Out-Null
-    }    
-    
-    Fetch-HTTP -Uri "$($nodeDist)$($versionCopy)$($OSArch)$($nodeExe)" -OutFile "$($nvmHome)$($versionCopy)$($nodeExe)"
+    Begin
+    {    
+        $versionCopy = @{$true="latest\"; $false="v$($Version)\"}[$Version -eq "latest"]        
+
+        $nodeUri = "$($config.NodeWeb)$($versionCopy)$($config.OSArch)$($nodeExe)"
+        $installPath = "$($config.NodeHome)$($versionCopy)"
+        $outFile = "$($installPath)$($nodeExe)"
+    }
+    Process
+    {
+        Write-Verbose "Starting install for node version: $versionCopy"
+
+        if((Test-Path $installPath) -eq $false){
+            Write-Verbose "The path $installPath does not exist yet. Creating path ..."
+            New-Item $installPath -ItemType Directory | Out-Null
+        }    
+
+        Write-Verbose "$nodeUri"
+        Fetch-HTTP -Uri $nodeUri -OutFile $outFile
+        Write-Verbose "Download complete file saved at: $outFile"
+    }
 }
 
 function Update-Node
@@ -54,7 +62,7 @@ function Get-NodeVersion
     if($PSCmdlet.ParameterSetName -eq "InstalledVersions")
     {
         if($ListInstalled -eq $true){
-            $Output =  ((ls "$($nvmHome)" -Directory -Filter "v*").Name)
+            $Output =  ((ls "$($config.NodeHome)" -Directory -Filter "v*").Name)
             $Output += "latest -> $(node -v)"
         }
         else{
@@ -80,7 +88,7 @@ function Get-AllNodeVersions
     if($script:npmVersions.Count -eq 0){
         $script:npmVersion = @()
 
-        $nodeVPage = (Fetch-HTTP -Uri "$($nodeDist)").Content        
+        $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content        
         
         $regex = '<a\s*href="(?<NodeV>(?:v[\d]{1,3}(?:.[\d]{1,3}){2})|(?:latest))\/\s*"\s*>'
 
@@ -94,17 +102,31 @@ function Get-AllNodeVersions
 
 #To implement
 function Start-Node{
-    node $args
+    
+    [CmdletBinding()]
+    Param
+    (
+        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
+        [ValidateScript({(Get-NodeVersion -ListInstalled) -contains "v$($_)" -or $_ -eq "latest" })]
+        [String]$Version = "latest",
+        [String]$Params   
+    )
+
+    $env:DefaultNode = $Version
+   
+    node $Params
 }
 
 function Install-Npm
 {
-   if((Test-Path "$($nvmHome)node_modules\npm\bin\npm-cli.js") -eq $false)
+   if((Test-Path "$($config.NodeHome)node_modules\npm\bin\npm-cli.js") -eq $false)
    {
-        $npmInfo = (ConvertFrom-Json -InputObject (Fetch-HTTP $npmDist))        
+        $npmInfo = (ConvertFrom-Json -InputObject (Fetch-HTTP $config.NPMWeb))        
 
-        #Unzip-Archive -Source "$($nvmHome)npm-1.4.9.zip" -Destination $nvmHome
+        #Unzip-Archive -Source "$($nvmHome)npm-1.4.9.zip" -Destination $nvmHome        
    }
+
+   return $npmInfo
 }
 
 #---------------------------------------------------------
@@ -212,29 +234,15 @@ function Set-Path
     Write-Output $Path
 }
 
+function get-config
+{
+    Write-Output $config
+}
+
 #---------------------------------------------------------
 # Aliases
 #---------------------------------------------------------
 Set-Alias -Name cat -Value Get-Content -option AllScope
-
-#---------------------------------------------------------
-# Prereq Tests
-#---------------------------------------------------------
-if((Get-EnvironmentVar CurNodeVer Machine) -eq $null)
-{
-    Set-EnvironmentVar "CurNodeVer" "latest" "User"
-    $env:CurNodeVer = "latest"
-}
-
-if((Test-Path $nvmHome) -eq $false)
-{
-    New-Item $nvmHome -ItemType Directory
-}
-
-if((Get-WmiObject Win32_OperatingSystem).OSArchitecture -eq "64-Bit")
-{
-    $script:OSArch = "x64/"
-}
 
 Install-Npm
 
