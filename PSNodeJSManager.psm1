@@ -118,12 +118,22 @@ function Install-Npm
 
    if((Test-Path "$($config.NodeHome)node_modules\npm\bin\npm-cli.js") -eq $false)
    {
-        $npmInfo = (ConvertFrom-Json -InputObject (Fetch-HTTP $config.NPMWeb))        
+        $npmInfo = (ConvertFrom-Json -InputObject (Fetch-HTTP $config.NPMWeb)) 
+        
+        $tgzFile = "npm-$($npmINfo.'dist-tags'.latest).tgz"
+        $tarFile = "npm-$($npmINfo.'dist-tags'.latest).tar"
+        
+        Fetch-HTTP "$($config.NPMWeb)/-/$tgzFile" -OutFile "$($config.NodeHome)$tgzFile"
         # https://registry.npmjs.org/npm/-/npm-1.4.10.tgz
-        #Unzip-Archive -Source "$($nvmHome)npm-1.4.9.zip" -Destination $nvmHome        
-   }
+        
+        7zip x "$($config.NodeHome)$tgzFile" -o"$($config.NodeHome)" -y
+        7zip x "$($config.NodeHome)$tarFile" -o"$($config.NodeHome)node_modules" -y
 
-   Write-Output $npmInfo
+        Rename-Item "$($config.NodeHome)node_modules\package" "npm"
+
+        Remove-Item "$($config.NodeHome)$tgzFile"
+        Remove-Item "$($config.NodeHome)$tarFile"               
+   }
 }
 
 #---------------------------------------------------------
@@ -253,24 +263,6 @@ function Fetch-HTTP
     }
 }
 
-function Unzip-Archive
-{
-    [CmdletBinding()]
-    Param
-    (
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ Test-Path $_ })]
-        [String]$Source,
-        [ValidateScript({ Test-Path $_ })]
-        [String]$Destination = (Get-Location).Path
-    )
-
-    Unblock-File $Source
-
-    Add-Type -AssemblyName  System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::ExtractToDirectory(((ls $Source).FullName), $Destination)
-}
-
 function Get-Path
 {
     Param
@@ -334,6 +326,7 @@ $nodeVersions = @()
 # Aliases
 #---------------------------------------------------------
 Set-Alias -Name cat -Value Get-Content -option AllScope
+Set-Alias -Name 7zip -Value "$($env:ProgramFiles)\7-Zip\7z.exe"
 
 #-------------------------------------------------
 # Export global functions values and aliases
