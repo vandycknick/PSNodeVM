@@ -126,15 +126,30 @@ function Install-Npm
         Fetch-HTTP "$($config.NPMWeb)/-/$tgzFile" -OutFile "$($config.NodeHome)$tgzFile"
         # https://registry.npmjs.org/npm/-/npm-1.4.10.tgz
         
-        7zip x "$($config.NodeHome)$tgzFile" -o"$($config.NodeHome)" -y
-        7zip x "$($config.NodeHome)$tarFile" -o"$($config.NodeHome)node_modules" -y
+        (7zip x "$($config.NodeHome)$tgzFile" -o"$($config.NodeHome)" -y) | Out-Null
+        (7zip x "$($config.NodeHome)$tarFile" -o"$($config.NodeHome)node_modules" -y) | Out-Null
 
         Rename-Item "$($config.NodeHome)node_modules\package" "npm"
 
+        Write-Verbose "Copy $PSScriptRoot\Config\npmrc to $($config.NodeHome)node_modules\npm"
+        Copy-Item "$PSScriptRoot\Config\npmrc" "$($config.NodeHome)node_modules\npm"
+
+        Write-Verbose "Clean up home folder:"
+        
+        Write-Verbose "Remove: $($config.NodeHome)$tgzFile" 
         Remove-Item "$($config.NodeHome)$tgzFile"
-        Remove-Item "$($config.NodeHome)$tarFile"               
+        
+        Write-Verbose "Remove: $($config.NodeHome)$tarFile"
+        Remove-Item "$($config.NodeHome)$tarFile"             
    }
 }
+
+#---------------------------------------------------------
+# Node and npm shorthand commands
+#---------------------------------------------------------
+Set-Alias -Name node -Value "$((Get-PSNodeConfig).NodeHome)latest\node.exe"
+function npm { node "$((Get-PSNodeConfig).NodeHome)node_modules\npm\bin\npm-cli.js" $args}
+
 
 #---------------------------------------------------------
 #PSNodeJSManager Functions
@@ -182,19 +197,11 @@ function Setup-PSNodeJSManagerEnvironment
     Write-Verbose "Install latest node version!"
     Install-Node
 
-    Write-Verbose "Copy $PSScriptRoot\Config\node.cmd to $($config.NodeHome)"
-    Copy-Item "$PSScriptRoot\Config\node.cmd" $config.NodeHome
-    
-    Write-Verbose "Copy $PSScriptRoot\Config\npm.cmd to $($config.NodeHome)"
-    Copy-Item "$PSScriptRoot\Config\npm.cmd" $config.NodeHome
+    Write-Verbose "Install latest npm version to $($config.NodeHome)node_modules\npm"
+    Install-NPM
 
-    Write-Verbose "Copy $PSScriptRoot\Config\npmrc to $($config.NodeHome)node_modules\npm"
-    Copy-Item "$PSScriptRoot\Config\npmrc" "$($config.NodeHome)node_modules\npm"
-
-    if((Get-Path -Target User) -notcontains $config.NodeHome)
-    {
-        Write-Verbose "Adding $($config.NodeHome) to the current users path"
-    }
+    Write-Verbose "Check if global npm repo is in path: $($env:APPDATA)\npm"
+    #Add global npm repo to path-> this all installed modules will still be available
 }
 
 #---------------------------------------------------------
@@ -263,42 +270,6 @@ function Fetch-HTTP
     }
 }
 
-function Get-Path
-{
-    Param
-    (
-        [ValidateSet("User", "Machine", "Process")]
-        [String]$Target="Process"
-    )
-
-    $Path = ((Get-EnvironmentVar Path $Target) -split ";")
-
-    Write-Output $Path
-}
-
-function Set-Path
-{
-    Param
-    (
-        [Parameter(Mandatory=$true)]
-        [String]$PathVar,
-        [Parameter(Mandatory=$true)]
-        [String]$Value,
-        [ValidateSet("User", "Machine", "Process")]
-        [String]$Target="Process"
-    )
-
-    $Path = Get-Path -Target $Target
-
-    foreach($p in $Path){
-        if($p -eq $PathVar){
-            $p = $Value
-        }
-    }
-
-    Write-Output $Path
-}
-
 function Get-CPUArchitecture
 {
    $arch = (@{
@@ -340,10 +311,11 @@ Export-ModuleMember -Function Set-NodeVersion
 
 Export-ModuleMember -Function Setup-PSNodeJSManagerEnvironment
 
-Export-ModuleMember -Function Get-Path
 Export-ModuleMember -Function Install-NPM
 Export-ModuleMember -Function Get-CPUArchitecture
 Export-ModuleMember -Function Get-PSNodeConfig
 
+Export-ModuleMember -Alias node
+Export-ModuleMember -Function npm
 
 #---------------------------------------------------------
