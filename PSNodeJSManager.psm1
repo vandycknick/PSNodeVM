@@ -100,16 +100,13 @@ function Start-Node{
     (
         [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
         [ValidateScript({(Get-NodeVersion -ListInstalled) -contains "v$($_)" -or $_ -eq "latest" })]
-        [String]$Version,
-        [String]$Params   
+        [String]$Version="latest",
+        [String]$Params
     )
 
-    if($Version -ne $null)
-    {
-        $env:DefaultNode = $Version
-    }
+    $nodeVersion = @{$true="latest"; $false="v$Version"}[$Version -eq "latest"]
 
-    node $Params
+    ."$((Get-PSNodeConfig).NodeHome)$($nodeVersion)\node.exe" $Params
 }
 
 function Install-Npm
@@ -183,9 +180,6 @@ function Setup-PSNodeJSManagerEnvironment
     Write-Verbose "Get configuration object"
     $config = Get-PSNodeConfig
     Write-Verbose $config
-
-    Write-Verbose "Resetting DefaultNode environment var to latest!"
-    $env:DefaultNode = (Set-EnvironmentVar DefaultNode latest User)
 
     Write-Verbose "Checking NodeHome path: $($config.NodeHome)"
     if(!(Test-Path $config.NodeHome))
