@@ -106,7 +106,7 @@ function Start-Node{
 
     $nodeVersion = @{$true="latest"; $false="v$Version"}[$Version -eq "latest"]
 
-    ."$((Get-PSNodeConfig).NodeHome)$($nodeVersion)\node.exe" $Params
+    ."$((Get-PSNodeConfig).NodeHome)$($nodeVersion)\node.exe" $($Params -split " ")
 }
 
 function Install-Npm
@@ -141,12 +141,29 @@ function Install-Npm
    }
 }
 
+function Create-NodeCommand
+{
+    Param
+    (
+        [String]$Name,
+        [String]$Folder=$Name
+    ) 
+    "node `$PSScriptRoot\node_modules\$Folder\bin\$Name `$args" | Out-File "$($env:APPDATA)\npm\$Name.ps1" -Force
+}
+
 #---------------------------------------------------------
 # Node and npm shorthand commands
 #---------------------------------------------------------
-Set-Alias -Name node -Value "$((Get-PSNodeConfig).NodeHome)latest\node.exe"
-function npm { node "$((Get-PSNodeConfig).NodeHome)node_modules\npm\bin\npm-cli.js" $args}
+function node
+{
+    #Split $args variable to different string -> otherwise $args will be interpreted as one parameter
+    ."$((Get-PSNodeConfig).NodeHome)latest\node.exe" $($args -split " ")
+}
 
+function npm 
+{  
+    node "$((Get-PSNodeConfig).NodeHome)node_modules\npm\bin\npm-cli.js" $args
+}
 
 #---------------------------------------------------------
 #PSNodeJSManager Functions
@@ -196,55 +213,30 @@ function Setup-PSNodeJSManagerEnvironment
 
     Write-Verbose "Check if global npm repo is in path: $($env:APPDATA)\npm"
     #Add global npm repo to path-> this all installed modules will still be available
+    $path = (([System.Environment]::GetEnvironmentVariable("PATH", "Process")) -split ";")
+
+    if($path -notcontains "$($env:APPDATA)\npm")
+    {
+        Write-Verbose "Global npm repo not in path!"
+
+        $userString = ([System.Environment]::GetEnvironmentVariable("PATH", "User"))        
+        $userPath = @{$true=@(); $false=($userString -split ";")}[$userString -eq $null -or $userString -eq ""]        
+        $userPath += "$($env:APPDATA)\npm"
+        [System.Environment]::SetEnvironmentVariable("PATH", ($userPath -join ";"), "User");
+        
+        Write-Verbose "Update path"
+        $env:PATH = "$([System.Environment]::GetEnvironmentVariable("PATH", "Machine"))"
+        $env:PATH += ";$([System.Environment]::GetEnvironmentVariable("PATH", "User"))"
+    }
+    else
+    {
+        Write-Verbose "Global npm repo already in path!"
+    }
 }
 
 #---------------------------------------------------------
 # Helper functions
 #---------------------------------------------------------
-function Get-EnvironmentVar
-{
-    [CmdletBinding()]
-    Param
-    (
-        [Parameter(Mandatory=$true)]
-        [String]$Variable,
-        [ValidateSet("User", "Machine", "Process")]
-        [String]$Target="Process"
-    )
-    Write-Output ([System.Environment]::GetEnvironmentVariable($Variable, $Target))
- }
-
-function Set-EnvironmentVar
-{
-    [CmdletBinding()]
-    Param
-    (
-        [Parameter(Mandatory=$true)]
-        [String]$Variable,
-        [Parameter(Mandatory=$true)]
-        [String]$Value,
-        [ValidateSet("User", "Machine", "Process")]
-        [String]$Target="Process"
-    )
-    [System.Environment]::SetEnvironmentVariable($Variable, $Value, $Target)
-    Write-Output (Get-EnvironmentVar $Variable $Target)
- }
-
- function Remove-EnvironmentVar
- {
-    [CmdletBinding()]
-    Param
-    (
-        [Parameter(Mandatory=$true)]
-        [String]$Variable,
-        [ValidateSet("User", "Machine", "Process")]
-        [String]$Target="Process"
-    )
-
-    [System.Environment]::SetEnvironmentVariable($Variable, "", $Target)
-    Write-Output (Get-EnvironmentVar $Variable $Target)
- }
-
 function Fetch-HTTP
 {
     [CmdletBinding()]
@@ -290,7 +282,6 @@ $nodeVersions = @()
 #---------------------------------------------------------
 # Aliases
 #---------------------------------------------------------
-Set-Alias -Name cat -Value Get-Content -option AllScope
 Set-Alias -Name 7zip -Value "$($env:ProgramFiles)\7-Zip\7z.exe"
 
 #-------------------------------------------------
@@ -302,6 +293,7 @@ Export-ModuleMember -Function Set-Node
 Export-ModuleMember -Function Start-Node
 Export-ModuleMember -Function Get-NodeVersion
 Export-ModuleMember -Function Set-NodeVersion
+Export-ModuleMember -Function Create-NodeCommand
 
 Export-ModuleMember -Function Setup-PSNodeJSManagerEnvironment
 
@@ -309,7 +301,7 @@ Export-ModuleMember -Function Install-NPM
 Export-ModuleMember -Function Get-CPUArchitecture
 Export-ModuleMember -Function Get-PSNodeConfig
 
-Export-ModuleMember -Alias node
 Export-ModuleMember -Function npm
+Export-ModuleMember -Function node
 
 #---------------------------------------------------------
