@@ -111,6 +111,8 @@ function Start-Node{
 
 function Install-Npm
 {
+   [CmdletBinding()]
+   Param()
    $config = Get-PSNodeConfig
 
    if((Test-Path "$($config.NodeHome)node_modules\npm\bin\npm-cli.js") -eq $false)
@@ -128,8 +130,8 @@ function Install-Npm
 
         Rename-Item "$($config.NodeHome)node_modules\package" "npm"
 
-        Write-Verbose "Copy $PSScriptRoot\Config\npmrc to $($config.NodeHome)node_modules\npm"
-        Copy-Item "$PSScriptRoot\Config\npmrc" "$($config.NodeHome)node_modules\npm"
+        Write-Verbose "Create npmrc file in $($config.NodeHome)node_modules\npm"
+        "prefix=`${APPDATA}\npm" | Out-File "$($config.NodeHome)node_modules\npm\npmrc" -Encoding ascii -Force
 
         Write-Verbose "Clean up home folder:"
         
@@ -141,15 +143,15 @@ function Install-Npm
    }
 }
 
-function Create-NodeCommand
-{
-    Param
-    (
-        [String]$Name,
-        [String]$Folder=$Name
-    ) 
-    "node `$PSScriptRoot\node_modules\$Folder\bin\$Name `$args" | Out-File "$($env:APPDATA)\npm\$Name.ps1" -Force
-}
+#function Create-NodeCommand
+#{
+#    Param
+#    (
+#        [String]$Name,
+#        [String]$Folder=$Name
+#    ) 
+#    "node `$PSScriptRoot\node_modules\$Folder\bin\$Name `$args" | Out-File "$($env:APPDATA)\npm\$Name.ps1" -Force
+#}
 
 #---------------------------------------------------------
 # Node and npm shorthand commands
@@ -206,10 +208,10 @@ function Setup-PSNodeJSManagerEnvironment
     }
 
     Write-Verbose "Install latest node version!"
-    Install-Node
+    #Install-Node
 
     Write-Verbose "Install latest npm version to $($config.NodeHome)node_modules\npm"
-    Install-NPM
+    #Install-NPM
 
     Write-Verbose "Check if global npm repo is in path: $($env:APPDATA)\npm"
     #Add global npm repo to path-> this all installed modules will still be available
@@ -232,6 +234,10 @@ function Setup-PSNodeJSManagerEnvironment
     {
         Write-Verbose "Global npm repo already in path!"
     }
+
+    Write-Verbose "Create node.cmd for npm modules"
+    "@IF EXIST `"$($config.NodeHome)latest\node.exe`" ( $($config.NodeHome)latest\node.exe %* )" | 
+    Out-File -FilePath "$($env:APPDATA)\npm\node.cmd" -Encoding ascii -Force
 }
 
 #---------------------------------------------------------
@@ -289,12 +295,9 @@ Set-Alias -Name 7zip -Value "$($env:ProgramFiles)\7-Zip\7z.exe"
 #---------------------------------------------------------
 Export-ModuleMember -Function Install-Node
 Export-ModuleMember -Function Update-Node
-Export-ModuleMember -Function Set-Node
 Export-ModuleMember -Function Start-Node
 Export-ModuleMember -Function Get-NodeVersion
 Export-ModuleMember -Function Set-NodeVersion
-Export-ModuleMember -Function Create-NodeCommand
-
 Export-ModuleMember -Function Setup-PSNodeJSManagerEnvironment
 
 Export-ModuleMember -Function Install-NPM
