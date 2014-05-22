@@ -181,7 +181,7 @@ function Get-PSNodeConfig
 
 function Import-PSNodeJSManagerConfig
 {
-    $fileName = "PSNodeJSManagerConfig.xml"
+    $fileName = "PSNodeVMConfig.xml"
     $path = @{$true="$PSScriptRoot\..\$fileName"; $false="$PSScriptRoot\$fileName"}[(Test-Path "$PSScriptRoot\..\$fileName")]
     
     $config = ([xml](Get-Content $path)) 
