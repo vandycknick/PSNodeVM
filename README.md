@@ -1,4 +1,6 @@
-#Under Construction
+#PowerShell Node Version Manager
+
+Readme file in production + ps help files = WORK IN PROGRESS :)
 
 #To-Do
 1. Make user config file override global config file settings
