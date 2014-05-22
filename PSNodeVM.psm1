@@ -143,16 +143,6 @@ function Install-Npm
    }
 }
 
-#function Create-NodeCommand
-#{
-#    Param
-#    (
-#        [String]$Name,
-#        [String]$Folder=$Name
-#    ) 
-#    "node `$PSScriptRoot\node_modules\$Folder\bin\$Name `$args" | Out-File "$($env:APPDATA)\npm\$Name.ps1" -Force
-#}
-
 #---------------------------------------------------------
 # Node and npm shorthand commands
 #---------------------------------------------------------
@@ -175,20 +165,18 @@ function Get-PSNodeConfig
     #will always return the global config object
     if($script:config -eq $null)
     {
-        $script:config = (Import-PSNodeJSManagerConfig).PSNodeJSManager
+        $fileName = "PSNodeVMConfig.xml"
+        $path = @{$true="$PSScriptRoot\..\$fileName"; $false="$PSScriptRoot\$fileName"}[(Test-Path "$PSScriptRoot\..\$fileName")]
+        
+        $config = @{}
+
+        ([xml](Get-Content $path)).PSNodeJSManager.ChildNodes |
+        ForEach-Object { $config[$_.Name] = $_.InnerText }    
+        
+        $script:config = $config
     }
 
     Write-Output $script:config
-}
-
-function Import-PSNodeJSManagerConfig
-{
-    $fileName = "PSNodeVMConfig.xml"
-    $path = @{$true="$PSScriptRoot\..\$fileName"; $false="$PSScriptRoot\$fileName"}[(Test-Path "$PSScriptRoot\..\$fileName")]
-    
-    $config = ([xml](Get-Content $path)) 
-
-    Write-Output $config
 }
 
 function Setup-PSNodeJSManagerEnvironment
@@ -275,7 +263,7 @@ function Get-CPUArchitecture
 #---------------------------------------------------------
 # Set global module variables | TO-DO find better implementation
 #---------------------------------------------------------
-(Get-PSNodeConfig).OSArch = [string](Get-CPUArchitecture)
+(Get-PSNodeConfig).OSArch = Get-CPUArchitecture
 
 $nodeExe = "node.exe"
 $nodeVersions = @()
