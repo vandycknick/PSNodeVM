@@ -179,7 +179,7 @@ function Get-PSNodeConfig
     Write-Output $script:config
 }
 
-function Setup-PSNodeJSManagerEnvironment
+function Setup-PSNodeVMEnvironment
 {
     [CmdletBinding()]
     Param()
@@ -196,10 +196,10 @@ function Setup-PSNodeJSManagerEnvironment
     }
 
     Write-Verbose "Install latest node version!"
-    #Install-Node
+    Install-Node
 
     Write-Verbose "Install latest npm version to $($config.NodeHome)node_modules\npm"
-    #Install-NPM
+    Install-NPM
 
     Write-Verbose "Check if global npm repo is in path: $($env:APPDATA)\npm"
     #Add global npm repo to path-> this all installed modules will still be available
@@ -286,7 +286,7 @@ Export-ModuleMember -Function Update-Node
 Export-ModuleMember -Function Start-Node
 Export-ModuleMember -Function Get-NodeVersion
 Export-ModuleMember -Function Set-NodeVersion
-Export-ModuleMember -Function Setup-PSNodeJSManagerEnvironment
+Export-ModuleMember -Function Setup-PSNodeVMEnvironment
 
 Export-ModuleMember -Function Install-NPM
 Export-ModuleMember -Function Get-CPUArchitecture
