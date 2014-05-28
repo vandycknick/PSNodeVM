@@ -74,7 +74,7 @@ function Get-NodeVersion
         if($script:nodeVersions.Count -eq 0)
         {
             Write-Verbose "Getting all node versions from $($config.NodeWeb)"
-            $script:nodeVersions = @()
+            $nodeVersions = @()
 
             $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content        
         
@@ -82,8 +82,10 @@ function Get-NodeVersion
 
             Write-Verbose "Cachinge response in nodeVersions global script variable"
             foreach($nodeVersion in ([regex]::Matches($nodeVPage, $regex))){
-                $script:nodeVersions += $nodeVersion.Groups["NodeV"].Value      
+                $nodeVersions += $nodeVersion.Groups["NodeV"].Value      
             }
+
+            $script:nodeversion = ($nodeVersions | Sort-Object -Descending)
         }
 
         Write-Verbose "Output cached node versions array!"
@@ -258,6 +260,24 @@ function Get-CPUArchitecture
             }[(Get-CimInstance Win32_OperatingSystem).OSARchitecture -eq "64-bit"])
             
    Write-Output $arch
+}
+
+function Extract-Zip
+{
+    [CmdletBinding()]
+    Param
+    (
+        [Parameter(Mandatory=$true)]
+        [ValidateScript({ Test-Path $_ })]
+        [String]$Source,
+        [ValidateScript({ Test-Path $_ })]
+        [String]$Destination = (Get-Location).Path
+    )
+
+    Unblock-File $Source
+
+    Add-Type -AssemblyName  System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory(((ls $Source).FullName), $Destination)
 }
 
 #---------------------------------------------------------
