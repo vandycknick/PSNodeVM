@@ -76,10 +76,10 @@ function Get-NodeVersion
             Write-Verbose "Getting all node versions from $($config.NodeWeb)"
             $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content        
         
-            $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeV>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') | 
-                                    %{ [System.Version] $_.Groups["NodeV"].Value } |
-                                    Sort-Object -Descending -Unique | 
-                                    %{ $_.toString()})
+            $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeVersion>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') | 
+                                   %{ [System.Version] $_.Groups["NodeVersion"].Value } |
+                                   Sort-Object -Descending -Unique | 
+                                   %{ $_.toString()})
         }
 
         Write-Verbose "Output cached node versions array!"
@@ -111,32 +111,40 @@ function Install-Npm
    Param()
    $config = Get-PSNodeConfig
 
-   if((Test-Path "$($config.NodeHome)node_modules\npm\bin\npm-cli.js") -eq $false)
-   {
-        $npmInfo = (ConvertFrom-Json -InputObject (Fetch-HTTP $config.NPMWeb)) 
+   #if((Test-Path "$($config.NodeHome)node_modules\npm\bin\npm-cli.js") -eq $false)
+   #{
+        $npmVersions = ([regex]::Matches((Fetch-HTTP $config.NPMWeb), '(?:href="(npm-(?<NPMVersion>(?:[\d]{1,3}\.){2}(?:[\d]{1,3}))\.zip)")') |
+                       %{ [System.Version] $_.Groups["NPMVersion"].Value } |
+                       Sort-Object -Descending -Unique | 
+                       %{ $_.toString()})
         
-        $tgzFile = "npm-$($npmINfo.'dist-tags'.latest).tgz"
-        $tarFile = "npm-$($npmINfo.'dist-tags'.latest).tar"
+        $npmLatest = $npmVersions[0]
+
+
+        $zipFile = "npm-$npmLatest.zip"
         
-        Fetch-HTTP "$($config.NPMWeb)/-/$tgzFile" -OutFile "$($config.NodeHome)$tgzFile"
+        Fetch-HTTP "$($config.NPMWeb)/$zipFile" -OutFile "$($config.NodeHome)$zipFile"
+
+        Write-Output $npmVersions
+
         # https://registry.npmjs.org/npm/-/npm-1.4.10.tgz
         
-        (7zip x "$($config.NodeHome)$tgzFile" -o"$($config.NodeHome)" -y) | Out-Null
-        (7zip x "$($config.NodeHome)$tarFile" -o"$($config.NodeHome)node_modules" -y) | Out-Null
+        #(7zip x "$($config.NodeHome)$tgzFile" -o"$($config.NodeHome)" -y) | Out-Null
+        #(7zip x "$($config.NodeHome)$tarFile" -o"$($config.NodeHome)node_modules" -y) | Out-Null
 
-        Rename-Item "$($config.NodeHome)node_modules\package" "npm"
+        #Rename-Item "$($config.NodeHome)node_modules\package" "npm"
 
-        Write-Verbose "Create npmrc file in $($config.NodeHome)node_modules\npm"
-        "prefix=`${APPDATA}\npm" | Out-File "$($config.NodeHome)node_modules\npm\npmrc" -Encoding ascii -Force
+        #Write-Verbose "Create npmrc file in $($config.NodeHome)node_modules\npm"
+        #"prefix=`${APPDATA}\npm" | Out-File "$($config.NodeHome)node_modules\npm\npmrc" -Encoding ascii -Force
 
-        Write-Verbose "Clean up home folder:"
+        #Write-Verbose "Clean up home folder:"
         
-        Write-Verbose "Remove: $($config.NodeHome)$tgzFile" 
-        Remove-Item "$($config.NodeHome)$tgzFile"
+        #Write-Verbose "Remove: $($config.NodeHome)$tgzFile" 
+        #Remove-Item "$($config.NodeHome)$tgzFile"
         
-        Write-Verbose "Remove: $($config.NodeHome)$tarFile"
-        Remove-Item "$($config.NodeHome)$tarFile"             
-   }
+        #Write-Verbose "Remove: $($config.NodeHome)$tarFile"
+        #Remove-Item "$($config.NodeHome)$tarFile"             
+   #}
 }
 
 #---------------------------------------------------------

@@ -2,6 +2,6 @@
 <PSNodeJSManager>
 	<NodeHome>C:\PSNodeJS\</NodeHome>
 	<NodeWeb>http://nodejs.org/dist/</NodeWeb>
-	<NPMWeb>http://registry.npmjs.org/npm</NPMWeb>
+	<NPMWeb>http://nodejs.org/dist/npm</NPMWeb>
 	<OSArch></OSArch>
 </PSNodeJSManager>
