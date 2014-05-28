@@ -7,7 +7,7 @@ function Install-Node
     Param
     (
         [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
-        [ValidateScript({(Get-NodeVersion -ListOnline) -contains "v$($_)" -or $_ -eq "latest" })]
+        [ValidateScript({(Get-NodeVersion -Online) -contains "$($_)" -or $_ -eq "latest" })]
         [String]$Version = "latest"
     )
 
@@ -49,9 +49,9 @@ function Get-NodeVersion
     Param
     (
         [Parameter(ParameterSetName="InstalledVersions")]
-        [Switch]$ListInstalled,
+        [Switch]$Installed,
         [Parameter(Mandatory=$false,ParameterSetName="OnlineVersions")]
-        [Switch]$ListOnline      
+        [Switch]$Online      
     )
     
     $config = Get-PSNodeConfig
@@ -71,25 +71,19 @@ function Get-NodeVersion
     {
         Write-Verbose "ParemeterSetName == OnlineVersions"
 
-        if($script:nodeVersions.Count -eq 0)
+        if($script:nodeVersions.Count -le 0)
         {
             Write-Verbose "Getting all node versions from $($config.NodeWeb)"
-            $nodeVersions = @()
-
             $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content        
         
-            $regex = '<a\s*href="(?<NodeV>(?:v[\d]{1,3}(?:.[\d]{1,3}){2})|(?:latest))\/\s*"\s*>'
-
-            Write-Verbose "Cachinge response in nodeVersions global script variable"
-            foreach($nodeVersion in ([regex]::Matches($nodeVPage, $regex))){
-                $nodeVersions += $nodeVersion.Groups["NodeV"].Value      
-            }
-
-            $script:nodeversion = ($nodeVersions | Sort-Object -Descending)
+            $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeV>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') | 
+                                    %{ [System.Version] $_.Groups["NodeV"].Value } |
+                                    Sort-Object -Descending -Unique | 
+                                    %{ $_.toString()})
         }
 
         Write-Verbose "Output cached node versions array!"
-        $Output = $script:nodeVersions 
+        $Output = $script:nodeVersions
     }
 
     Write-Output $Output
