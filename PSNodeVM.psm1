@@ -37,13 +37,23 @@ function Install-Node
     }
 }
 
-function Update-Node
-{
-    Install-Node
-}
-
 #TO-DO: Implement uninstall-node function -> and export as global function
 function Uninstall-Node{}
+function Start-Node{
+
+    [CmdletBinding()]
+    Param
+    (
+        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
+        [ValidateScript({(Get-NodeVersion -ListInstalled) -contains "v$($_)" -or $_ -eq "latest" })]
+        [String]$Version="latest",
+        [String]$Params
+    )
+
+    $nodeVersion = @{$true="latest"; $false="v$Version"}[$Version -eq "latest"]
+
+    ."$((Get-PSNodeConfig).NodeHome)$($nodeVersion)\node.exe" $($Params -split " ")
+}
 
 #TO-DO: Implement Set-NodeVersion function -> and export the function
 function Set-NodeVersion {}
@@ -92,22 +102,6 @@ function Get-NodeVersion
     }
 
     Write-Output $Output
-}
-
-function Start-Node{
-
-    [CmdletBinding()]
-    Param
-    (
-        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
-        [ValidateScript({(Get-NodeVersion -ListInstalled) -contains "v$($_)" -or $_ -eq "latest" })]
-        [String]$Version="latest",
-        [String]$Params
-    )
-
-    $nodeVersion = @{$true="latest"; $false="v$Version"}[$Version -eq "latest"]
-
-    ."$((Get-PSNodeConfig).NodeHome)$($nodeVersion)\node.exe" $($Params -split " ")
 }
 
 #TO-DO: implement alias functions -> and export as global function
@@ -336,7 +330,6 @@ $config = $null
 # Export global functions values and aliases
 #---------------------------------------------------------
 Export-ModuleMember -Function Install-Node
-Export-ModuleMember -Function Update-Node
 Export-ModuleMember -Function Start-Node
 Export-ModuleMember -Function Get-NodeVersion
 Export-ModuleMember -Function Set-NodeVersion
