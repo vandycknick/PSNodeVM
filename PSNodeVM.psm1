@@ -1,7 +1,7 @@
 ﻿#---------------------------------------------------------
 # PSNodeVM Functions
 #---------------------------------------------------------
-function Install-Node 
+function Install-Node
 {
     [CmdletBinding()]
     Param
@@ -12,13 +12,16 @@ function Install-Node
     )
 
     Begin
-    {   
+    {
+        Write-Verbose "Preparing prerequisites!"
         $config = Get-PSNodeConfig
-        $versionCopy = @{$true="latest"; $false="v$($Version)"}[$Version -eq "latest"]        
+        $versionCopy = @{$true="latest"; $false="v$($Version)"}[$Version -eq "latest"]
 
         $nodeUri = "$($config.NodeWeb)$($versionCopy)/$($config.OSArch)/$($nodeExe)"
         $installPath = "$($config.NodeHome)$($versionCopy)\"
         $outFile = "$($installPath)$($nodeExe)"
+
+        Write-Verbose "Check PSNodeVM environment from provided config."
     }
     Process
     {
@@ -27,7 +30,7 @@ function Install-Node
         if((Test-Path $installPath) -eq $false){
             Write-Verbose "The path $installPath does not exist yet. Creating path ..."
             New-Item $installPath -ItemType Directory | Out-Null
-        }    
+        }
 
         Fetch-HTTP -Uri $nodeUri -OutFile $outFile
         Write-Verbose "Download complete file saved at: $outFile"
@@ -39,9 +42,8 @@ function Update-Node
     Install-Node
 }
 
-function Set-NodeVersion
-{
-}
+#TO-DO: Implement Set-NodeVersion function -> and export the function
+function Set-NodeVersion {}
 
 function Get-NodeVersion
 {
@@ -51,11 +53,11 @@ function Get-NodeVersion
         [Parameter(ParameterSetName="InstalledVersions")]
         [Switch]$Installed,
         [Parameter(Mandatory=$false,ParameterSetName="OnlineVersions")]
-        [Switch]$Online      
+        [Switch]$Online
     )
-    
+
     $config = Get-PSNodeConfig
-    
+
     if($PSCmdlet.ParameterSetName -eq "InstalledVersions")
     {
         Write-Verbose "ParemeterSetName == InstalledVersions"
@@ -74,11 +76,11 @@ function Get-NodeVersion
         if($script:nodeVersions.Count -le 0)
         {
             Write-Verbose "Getting all node versions from $($config.NodeWeb)"
-            $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content        
-        
-            $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeVersion>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') | 
+            $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content
+
+            $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeVersion>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') |
                                    %{ [System.Version] $_.Groups["NodeVersion"].Value } |
-                                   Sort-Object -Descending -Unique | 
+                                   Sort-Object -Descending -Unique |
                                    %{ $_.toString()})
         }
 
@@ -90,7 +92,7 @@ function Get-NodeVersion
 }
 
 function Start-Node{
-    
+
     [CmdletBinding()]
     Param
     (
@@ -115,20 +117,20 @@ function Install-Npm
    #{
         $npmVersions = ([regex]::Matches((Fetch-HTTP $config.NPMWeb), '(?:href="(npm-(?<NPMVersion>(?:[\d]{1,3}\.){2}(?:[\d]{1,3}))\.zip)")') |
                        %{ [System.Version] $_.Groups["NPMVersion"].Value } |
-                       Sort-Object -Descending -Unique | 
+                       Sort-Object -Descending -Unique |
                        %{ $_.toString()})
-        
+
         $npmLatest = $npmVersions[0]
 
 
         $zipFile = "npm-$npmLatest.zip"
-        
+
         Fetch-HTTP "$($config.NPMWeb)/$zipFile" -OutFile "$($config.NodeHome)$zipFile"
 
         Write-Output $npmVersions
 
         # https://registry.npmjs.org/npm/-/npm-1.4.10.tgz
-        
+
         #(7zip x "$($config.NodeHome)$tgzFile" -o"$($config.NodeHome)" -y) | Out-Null
         #(7zip x "$($config.NodeHome)$tarFile" -o"$($config.NodeHome)node_modules" -y) | Out-Null
 
@@ -138,12 +140,12 @@ function Install-Npm
         #"prefix=`${APPDATA}\npm" | Out-File "$($config.NodeHome)node_modules\npm\npmrc" -Encoding ascii -Force
 
         #Write-Verbose "Clean up home folder:"
-        
-        #Write-Verbose "Remove: $($config.NodeHome)$tgzFile" 
+
+        #Write-Verbose "Remove: $($config.NodeHome)$tgzFile"
         #Remove-Item "$($config.NodeHome)$tgzFile"
-        
+
         #Write-Verbose "Remove: $($config.NodeHome)$tarFile"
-        #Remove-Item "$($config.NodeHome)$tarFile"             
+        #Remove-Item "$($config.NodeHome)$tarFile"
    #}
 }
 
@@ -156,8 +158,8 @@ function node
     ."$((Get-PSNodeConfig).NodeHome)latest\node.exe" $($args -split " ")
 }
 
-function npm 
-{  
+function npm
+{
     node "$((Get-PSNodeConfig).NodeHome)node_modules\npm\bin\npm-cli.js" $args
 }
 
@@ -170,13 +172,23 @@ function Get-PSNodeConfig
     if($script:config -eq $null)
     {
         $fileName = "PSNodeVMConfig.xml"
-        $path = @{$true="$PSScriptRoot\..\$fileName"; $false="$PSScriptRoot\$fileName"}[(Test-Path "$PSScriptRoot\..\$fileName")]
-        
         $config = @{}
+        $configFiles = @{
+            "Default" = "$PSScriptRoot\$fileName";
+            "User" = "$PSScriptRoot\..\$fileName";
+        }
 
-        ([xml](Get-Content $path)).PSNodeJSManager.ChildNodes |
-        ForEach-Object { $config[$_.Name] = $_.InnerText }    
-        
+        Write-Verbose $configFiles
+
+        foreach($path in $configFiles.Values)
+        {
+            Write-Output $path
+            if(Test-Path $path)
+            {
+                ([xml](Get-Content $path)).PSNodeJSManager.ChildNodes | %{ $config[$_.Name] = $_.InnerText }
+            }
+        }
+
         $script:config = $config
     }
 
@@ -213,11 +225,11 @@ function Setup-PSNodeVMEnvironment
     {
         Write-Verbose "Global npm repo not in path!"
 
-        $userString = ([System.Environment]::GetEnvironmentVariable("PATH", "User"))        
-        $userPath = @{$true=@(); $false=($userString -split ";")}[$userString -eq $null -or $userString -eq ""]        
+        $userString = ([System.Environment]::GetEnvironmentVariable("PATH", "User"))
+        $userPath = @{$true=@(); $false=($userString -split ";")}[$userString -eq $null -or $userString -eq ""]
         $userPath += "$($env:APPDATA)\npm"
         [System.Environment]::SetEnvironmentVariable("PATH", ($userPath -join ";"), "User");
-        
+
         Write-Verbose "Update path"
         $env:PATH = "$([System.Environment]::GetEnvironmentVariable("PATH", "Machine"))"
         $env:PATH += ";$([System.Environment]::GetEnvironmentVariable("PATH", "User"))"
@@ -228,7 +240,7 @@ function Setup-PSNodeVMEnvironment
     }
 
     Write-Verbose "Create node.cmd for npm modules"
-    "@IF EXIST `"$($config.NodeHome)latest\node.exe`" ( $($config.NodeHome)latest\node.exe %* )" | 
+    "@IF EXIST `"$($config.NodeHome)latest\node.exe`" ( $($config.NodeHome)latest\node.exe %* )" |
     Out-File -FilePath "$($env:APPDATA)\npm\node.cmd" -Encoding ascii -Force
 }
 
@@ -260,7 +272,7 @@ function Get-CPUArchitecture
                 $true="x64";
                 $false="";
             }[(Get-CimInstance Win32_OperatingSystem).OSARchitecture -eq "64-bit"])
-            
+
    Write-Output $arch
 }
 
@@ -298,7 +310,7 @@ $nodeVersions = @()
 #---------------------------------------------------------
 # Aliases
 #---------------------------------------------------------
-Set-Alias -Name 7zip -Value "$($env:ProgramFiles)\7-Zip\7z.exe"
+#Set-Alias -Name 7zip -Value "$($env:ProgramFiles)\7-Zip\7z.exe"
 
 #-------------------------------------------------
 # Export global functions values and aliases
@@ -308,7 +320,7 @@ Export-ModuleMember -Function Update-Node
 Export-ModuleMember -Function Start-Node
 Export-ModuleMember -Function Get-NodeVersion
 Export-ModuleMember -Function Set-NodeVersion
-Export-ModuleMember -Function Setup-PSNodeVMEnvironment
+Export-ModuleMember -Function Get-PSNodeConfig
 
 Export-ModuleMember -Function Install-NPM
 Export-ModuleMember -Function Get-CPUArchitecture
