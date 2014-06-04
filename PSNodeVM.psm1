@@ -1,5 +1,5 @@
 ﻿#---------------------------------------------------------
-# PSNodeVM Functions
+# PSNodeVM Global Functions
 #---------------------------------------------------------
 function Install-Node
 {
@@ -39,7 +39,8 @@ function Install-Node
 
 #TO-DO: Implement uninstall-node function -> and export as global function
 function Uninstall-Node{}
-function Start-Node{
+function Start-Node
+{
 
     [CmdletBinding()]
     Param
@@ -56,7 +57,8 @@ function Start-Node{
 }
 
 #TO-DO: Implement Set-NodeVersion function -> and export the function
-function Set-NodeVersion {}
+function Set-NodeVersion 
+{}
 
 function Get-NodeVersion
 {
@@ -166,7 +168,7 @@ function npm
 }
 
 #---------------------------------------------------------
-#PSNodeJSManager Functions
+#PSNodeVM Private Functions
 #---------------------------------------------------------
 function Get-PSNodeConfig
 {
@@ -259,9 +261,6 @@ function Setup-PSNodeVMEnvironment
     Out-File -FilePath "$($env:APPDATA)\npm\node.cmd" -Encoding ascii -Force
 }
 
-#---------------------------------------------------------
-# Helper functions
-#---------------------------------------------------------
 function Fetch-HTTP
 {
     [CmdletBinding()]
@@ -315,11 +314,6 @@ function Extract-Zip
 $nodeExe = "node.exe"
 $nodeVersions = @()
 $config = $null
-
-#---------------------------------------------------------
-# Testing functions only |Remove on live
-#---------------------------------------------------------
-
 
 #---------------------------------------------------------
 # Aliases
