@@ -42,6 +42,9 @@ function Update-Node
     Install-Node
 }
 
+#TO-DO: Implement uninstall-node function -> and export as global function
+function Uninstall-Node{}
+
 #TO-DO: Implement Set-NodeVersion function -> and export the function
 function Set-NodeVersion {}
 
@@ -107,6 +110,11 @@ function Start-Node{
     ."$((Get-PSNodeConfig).NodeHome)$($nodeVersion)\node.exe" $($Params -split " ")
 }
 
+#TO-DO: implement alias functions -> and export as global function
+function Get-NodeAlias {}
+function Set-NodeAlias {}
+function Remove-NodeAlias {}
+
 function Install-Npm
 {
    [CmdletBinding()]
@@ -168,27 +176,40 @@ function npm
 #---------------------------------------------------------
 function Get-PSNodeConfig
 {
+    [CmdletBinding()]
+    Param
+    (
+        [switch]$Reset
+    )
+
+    Write-Verbose "Check if script:config variable is present!"
+
     #will always return the global config object
-    if($script:config -eq $null)
+    if($script:config -eq $null -or $Reset -eq $true)
     {
+        Write-Verbose "Check if script:config not present!"
+
         $fileName = "PSNodeVMConfig.xml"
         $config = @{}
-        $configFiles = @{
-            "Default" = "$PSScriptRoot\$fileName";
-            "User" = "$PSScriptRoot\..\$fileName";
-        }
+        $configFiles = @("$PSScriptRoot\$fileName";"$PSScriptRoot\..\$fileName";)
 
-        Write-Verbose $configFiles
-
-        foreach($path in $configFiles.Values)
-        {
-            Write-Output $path
+        Write-Verbose "Find all config files and create config hash!"
+        foreach($path in $configFiles)
+        {            
             if(Test-Path $path)
             {
+                Write-Verbose "Config file: $path exists!"
                 ([xml](Get-Content $path)).PSNodeJSManager.ChildNodes | %{ $config[$_.Name] = $_.InnerText }
             }
         }
-
+        
+        Write-Verbose "Check if CPU architecture is defined in config file!"
+        if($config.OSArch -eq $null -or $config.OSArch -eq "")
+        {
+            Write-Verbose "OSArch is not defined in config file determine CPU architecture!"
+            $config.OSArch = Get-CPUArchitecture
+            Write-Verbose "Current os architecture: $($config.OSArch)"
+        }             
         $script:config = $config
     }
 
@@ -297,10 +318,9 @@ function Extract-Zip
 #---------------------------------------------------------
 # Set global module variables | TO-DO find better implementation
 #---------------------------------------------------------
-(Get-PSNodeConfig).OSArch = Get-CPUArchitecture
-
 $nodeExe = "node.exe"
 $nodeVersions = @()
+$config = $null
 
 #---------------------------------------------------------
 # Testing functions only |Remove on live
