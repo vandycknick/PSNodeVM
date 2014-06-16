@@ -400,11 +400,10 @@ Export-ModuleMember -Function Install-Node
 Export-ModuleMember -Function Start-Node
 Export-ModuleMember -Function Get-NodeVersion
 Export-ModuleMember -Function Set-NodeVersion
-Export-ModuleMember -Function Get-PSNodeConfig
-
 Export-ModuleMember -Function Install-NPM
-Export-ModuleMember -Function Get-CPUArchitecture
+
 Export-ModuleMember -Function Get-PSNodeConfig
+Export-ModuleMember -Function Get-CPUArchitecture
 Export-ModuleMember -Function Get-Path
 Export-ModuleMember -Function Add-Path
 Export-ModuleMember -Function Remove-Path
