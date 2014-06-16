@@ -58,7 +58,7 @@ function Start-Node
     Param
     (
         [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
-        [ValidateScript({(Get-NodeVersion -ListInstalled) -contains "v$($_)" -or $_ -eq "latest" })]
+        [ValidateScript({(Get-NodeVersion -Installed) -contains "v$($_)" -or $_ -eq "latest" })]
         [String]$Version="latest",
         [String]$Params
     )
@@ -70,7 +70,22 @@ function Start-Node
 
 #TO-DO: Implement Set-NodeVersion function -> and export the function
 function Set-NodeVersion
-{}
+{
+    [CmdletBinding()]
+    Param
+    (
+        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
+        [ValidateScript({(Get-NodeVersion -Installed) -contains "$($_)" -or $_ -eq "latest" })]
+        [String]$Version = "latest"
+    )
+
+    $versionCopy = @{$true="latest"; $false="v$($Version)"}[$Version -eq "latest"]
+
+    Log-Verbose "Set default node version to $Version"
+
+    "@IF EXIST `"%~dp0\$($versionCopy)\node.exe`" ( %~dp0\$($versionCopy)\node.exe %* )" |
+    Out-File -FilePath "$($config.NodeHome)\node.cmd" -Encoding ascii -Force
+}
 
 function Get-NodeVersion
 {
@@ -83,14 +98,21 @@ function Get-NodeVersion
         [Switch]$Online
     )
 
+    Log-Verbose "Get node configuration"
     $config = Get-PSNodeConfig
 
     if($PSCmdlet.ParameterSetName -eq "InstalledVersions")
     {
         Log-Verbose "ParemeterSetName == InstalledVersions"
-        if($ListInstalled -eq $true){
-            $Output =  [Array]((ls "$($config.NodeHome)" -Directory -Filter "v*").Name)
-            $Output += "latest -> $(node -v)"
+        if($Installed -eq $true){
+            
+            $localVer += [Array]((ls "$($config.NodeHome)" -Directory -Filter "v*").Name)            
+            Log-Verbose "Get installed latest version."
+            $latest = Write-Output (."$((Get-PSNodeConfig).NodeHome)latest\node.exe"  "-v")
+            Log-Verbose "Latest version: $latest"
+            $Output = [Array] "latest -> $([regex]::Match($latest, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value)"
+            Log-Verbose "Transform local versions array (vX.X.X) to (X.X.X)"
+            $Output += ($localVer | % { ([regex]::Match($_, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value) })
         }
         else{
             $Output = (node -v)
@@ -118,28 +140,36 @@ function Get-NodeVersion
     Write-Output $Output
 }
 
-#TO-DO: implement alias functions -> and export as global function
-function Get-NodeAlias {}
-function Set-NodeAlias {}
-function Remove-NodeAlias {}
-
-
 function Get-NPMVersions
 {
-    Log-Verbose ""
+    [CmdletBinding()]
+    Param()
+    Log-Verbose "Get node configuration"
+    $config = Get-PSNodeConfig
+
+    Log-Verbose "Get all npm versions from $($config.NPMWeb)"
+    $npmVersions = ([regex]::Matches((Fetch-HTTP $config.NPMWeb), '(?:href="(npm-(?<NPMVersion>(?:[\d]{1,3}\.){2}(?:[\d]{1,3}))\.zip)")') |
+                   %{ [System.Version] $_.Groups["NPMVersion"].Value } |
+                   Sort-Object -Descending -Unique |
+                   %{ $_.toString()})
+    
+    Log-Verbose "Return all received versions!"
+    Write-Output $npmVersions
 }
 
 function Install-Npm
 {
    [CmdletBinding()]
-   Param(
-        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
-        [ValidateScript({(Get-NodeVersion -Online) -contains "$($_)" -or $_ -eq "latest" })]
-        [String]$Version = "latest"
+   Param
+   (
+        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$")]
+        [ValidateScript({(Get-NPMVersions) -contains "$($_)" })]
+        [AllowEmptyString()]
+        [String]$Version
    )
-
    Begin
    {
+        Log-Verbose "Get node configuration"
         $config = Get-PSNodeConfig
 
         Log-Verbose "Check the PSNodeVM current environment with config"
@@ -156,16 +186,19 @@ function Install-Npm
         Remove-Item "$($config.NodeHome)\node_modules" -Recurse -Force  -ErrorAction SilentlyContinue
         Remove-Item "$($config.NodeHome)\npm.cmd" -Force  -ErrorAction SilentlyContinue
 
-        Log-Verbose "Get all npm versions from $($config.NPMWeb)"
-        $npmVersions = ([regex]::Matches((Fetch-HTTP $config.NPMWeb), '(?:href="(npm-(?<NPMVersion>(?:[\d]{1,3}\.){2}(?:[\d]{1,3}))\.zip)")') |
-                       %{ [System.Version] $_.Groups["NPMVersion"].Value } |
-                       Sort-Object -Descending -Unique |
-                       %{ $_.toString()})
 
-        $npmLatest = $npmVersions[0]
+        if($Version -eq $null -or $Version -eq "")
+        {
+            $npmLatest = $npmVersions[0]
+        }
+        else
+        {
+            $npmLatest = $Version
+        }
+
         $zipFile = "npm-$npmLatest.zip"
 
-        Log-Verbose "Latest npm version: $zipFile"
+        Log-Verbose "Installing npm version: $zipFile"
    }
    Process
    {
@@ -349,7 +382,6 @@ function Add-Path
     Write-Output ($env:Path = ((Get-Path Machine) + (Get-Path User) -join ";"))
 }
 
-
 function Remove-Path
 {
     [CmdletBinding()]
@@ -388,7 +420,7 @@ function Log-Verbose
 
     $Stack = Get-PSCallStack
 
-    Log-Verbose "$($Stack[1].Command): $LogMessage"
+    Write-Verbose "$($Stack[1].Command): $LogMessage"
 }
 
 #---------------------------------------------------------
@@ -398,11 +430,6 @@ $nodeExe = "node.exe"
 $nodeVersions = @()
 $config = $null
 
-#---------------------------------------------------------
-# Aliases
-#---------------------------------------------------------
-#Set-Alias -Name 7zip -Value "$($env:ProgramFiles)\7-Zip\7z.exe"
-
 #-------------------------------------------------
 # Export global functions values and aliases
 #---------------------------------------------------------
@@ -410,11 +437,7 @@ Export-ModuleMember -Function Install-Node
 Export-ModuleMember -Function Start-Node
 Export-ModuleMember -Function Get-NodeVersion
 Export-ModuleMember -Function Set-NodeVersion
-Export-ModuleMember -Function Install-NPM
 
-Export-ModuleMember -Function Get-PSNodeConfig
-Export-ModuleMember -Function Get-CPUArchitecture
-Export-ModuleMember -Function Get-Path
-Export-ModuleMember -Function Add-Path
-Export-ModuleMember -Function Remove-Path
+Export-ModuleMember -Function Install-NPM
+Export-ModuleMember -Function Get-NPMVersions
 #---------------------------------------------------------
