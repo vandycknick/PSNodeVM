@@ -408,8 +408,4 @@ Export-ModuleMember -Function Get-PSNodeConfig
 Export-ModuleMember -Function Get-Path
 Export-ModuleMember -Function Add-Path
 Export-ModuleMember -Function Remove-Path
-
-Export-ModuleMember -Function npm
-Export-ModuleMember -Function node
-
 #---------------------------------------------------------
