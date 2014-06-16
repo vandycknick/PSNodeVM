@@ -13,13 +13,13 @@ function Install-Node
 
     Begin
     {
-        Write-Verbose "Preparing prerequisites!"
+        Log-Verbose "Preparing prerequisites!"
         $config = Get-PSNodeConfig
 
-        Write-Verbose "Check the PSNodeVM current environment with config"
+        Log-Verbose "Check the PSNodeVM current environment with config"
         Check-PSNodeEnv
 
-        
+
         $versionCopy = @{$true="latest"; $false="v$($Version)"}[$Version -eq "latest"]
 
         $nodeUri = "$($config.NodeWeb)$($versionCopy)/$($config.OSArch)/$($nodeExe)"
@@ -28,10 +28,10 @@ function Install-Node
     }
     Process
     {
-        Write-Verbose "Starting install for node version: $versionCopy"
+        Log-Verbose "Starting install for node version: $versionCopy"
 
         if((Test-Path $installPath) -eq $false){
-            Write-Verbose "The path $installPath does not exist yet. Creating path ..."
+            Log-Verbose "The path $installPath does not exist yet. Creating path ..."
             New-Item $installPath -ItemType Directory | Out-Null
         }
 
@@ -40,12 +40,12 @@ function Install-Node
 
         if((Test-Path "$($config.NodeHome)\node.cmd") -eq $false)
         {
-            Write-Verbose "Create node.cmd for global access!"
+            Log-Verbose "Create node.cmd for global access!"
             "@IF EXIST `"%~dp0\latest\node.exe`" ( %~dp0\latest\node.exe %* )" |
-            Out-File -FilePath "$($config.NodeHome)\node.cmd" -Encoding ascii -Force        
+            Out-File -FilePath "$($config.NodeHome)\node.cmd" -Encoding ascii -Force
         }
 
-        Write-Verbose "Download complete file saved at: $outFile"
+        Log-Verbose "Download complete file saved at: $outFile"
     }
 }
 
@@ -69,7 +69,7 @@ function Start-Node
 }
 
 #TO-DO: Implement Set-NodeVersion function -> and export the function
-function Set-NodeVersion 
+function Set-NodeVersion
 {}
 
 function Get-NodeVersion
@@ -87,7 +87,7 @@ function Get-NodeVersion
 
     if($PSCmdlet.ParameterSetName -eq "InstalledVersions")
     {
-        Write-Verbose "ParemeterSetName == InstalledVersions"
+        Log-Verbose "ParemeterSetName == InstalledVersions"
         if($ListInstalled -eq $true){
             $Output =  [Array]((ls "$($config.NodeHome)" -Directory -Filter "v*").Name)
             $Output += "latest -> $(node -v)"
@@ -98,11 +98,11 @@ function Get-NodeVersion
     }
     elseif($PSCmdlet.ParameterSetName -eq "OnlineVersions")
     {
-        Write-Verbose "ParemeterSetName == OnlineVersions"
+        Log-Verbose "ParemeterSetName == OnlineVersions"
 
         if($script:nodeVersions.Count -le 0)
         {
-            Write-Verbose "Getting all node versions from $($config.NodeWeb)"
+            Log-Verbose "Getting all node versions from $($config.NodeWeb)"
             $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content
 
             $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeVersion>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') |
@@ -111,7 +111,7 @@ function Get-NodeVersion
                                    %{ $_.toString()})
         }
 
-        Write-Verbose "Output cached node versions array!"
+        Log-Verbose "Output cached node versions array!"
         $Output = $script:nodeVersions
     }
 
@@ -123,30 +123,40 @@ function Get-NodeAlias {}
 function Set-NodeAlias {}
 function Remove-NodeAlias {}
 
+
+function Get-NPMVersions
+{
+    Log-Verbose ""
+}
+
 function Install-Npm
 {
    [CmdletBinding()]
-   Param()
+   Param(
+        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
+        [ValidateScript({(Get-NodeVersion -Online) -contains "$($_)" -or $_ -eq "latest" })]
+        [String]$Version = "latest"
+   )
 
    Begin
    {
         $config = Get-PSNodeConfig
-        
-        Write-NodeVerbose "Check the PSNodeVM current environment with config"
+
+        Log-Verbose "Check the PSNodeVM current environment with config"
         Check-PSNodeEnv
 
-        Write-NodeVerbose "Check if global npm repo is in path: $($env:APPDATA)\npm"
+        Log-Verbose "Check if global npm repo is in path: $($env:APPDATA)\npm"
         if((Get-Path) -notcontains "$($env:APPDATA)\npm")
         {
-            Write-NodeVerbose "Add $($config.NodeHome) to the user path"
+            Log-Verbose "Add $($config.NodeHome) to the user path"
             Add-Path "$($env:APPDATA)\npm" "User" | Out-Null
         }
 
-        Write-NodeVerbose "Remove previous node versions"
+        Log-Verbose "Remove previous node versions"
         Remove-Item "$($config.NodeHome)\node_modules" -Recurse -Force  -ErrorAction SilentlyContinue
         Remove-Item "$($config.NodeHome)\npm.cmd" -Force  -ErrorAction SilentlyContinue
 
-        Write-NodeVerbose "Get all npm versions from $($config.NPMWeb)"
+        Log-Verbose "Get all npm versions from $($config.NPMWeb)"
         $npmVersions = ([regex]::Matches((Fetch-HTTP $config.NPMWeb), '(?:href="(npm-(?<NPMVersion>(?:[\d]{1,3}\.){2}(?:[\d]{1,3}))\.zip)")') |
                        %{ [System.Version] $_.Groups["NPMVersion"].Value } |
                        Sort-Object -Descending -Unique |
@@ -155,19 +165,19 @@ function Install-Npm
         $npmLatest = $npmVersions[0]
         $zipFile = "npm-$npmLatest.zip"
 
-        Write-NodeVerbose "Latest npm version: $zipFile"
+        Log-Verbose "Latest npm version: $zipFile"
    }
    Process
    {
         Fetch-HTTP "$($config.NPMWeb)/$zipFile" -OutFile "$($config.NodeHome)$zipFile"
 
-        Write-NodeVerbose "Downloaded file: $zipFile, extracting to $($config.NodeHome)\node_modules"
+        Log-Verbose "Downloaded file: $zipFile, extracting to $($config.NodeHome)\node_modules"
         Extract-Zip "$($config.NodeHome)$zipFile" "$($config.NodeHome)"
 
-        Write-NodeVerbose "Create npmrc file in $($config.NodeHome)node_modules\npm"
+        Log-Verbose "Create npmrc file in $($config.NodeHome)node_modules\npm"
         "prefix=`${APPDATA}\npm" | Out-File "$($config.NodeHome)node_modules\npm\npmrc" -Encoding ascii -Force
 
-        Write-NodeVerbose "Cleanup zip file: $($config.NodeHome)\$zipFile"
+        Log-Verbose "Cleanup zip file: $($config.NodeHome)\$zipFile"
         Remove-Item "$($config.NodeHome)\$zipFile" -Force  -ErrorAction SilentlyContinue
 
         Write-Output $npmVersions
@@ -199,39 +209,39 @@ function Get-PSNodeConfig
         [switch]$Reset
     )
 
-    Write-NodeVerbose "Check if script:config variable is present!"
+    Log-Verbose "Check if script:config variable is present!"
 
     #will always return the global config object
     if($script:config -eq $null -or $Reset -eq $true)
     {
-        Write-NodeVerbose "Variable script:config not present!"
+        Log-Verbose "Variable script:config not present!"
 
         $fileName = "PSNodeVMConfig.xml"
         $config = @{}
         $configFiles = @("$PSScriptRoot\$fileName";"$PSScriptRoot\..\$fileName";)
 
-        Write-NodeVerbose "Find all config files and create config hash!"
+        Log-Verbose "Find all config files and create config hash!"
         foreach($path in $configFiles)
-        {            
+        {
             if(Test-Path $path)
             {
-                Write-NodeVerbose "Config file: $path exists!"
+                Log-Verbose "Config file: $path exists!"
                 ([xml](Get-Content $path)).PSNodeJSManager.ChildNodes | %{ $config[$_.Name] = $_.InnerText }
             }
         }
-        
-        Write-NodeVerbose "Check if CPU architecture is defined in config file!"
+
+        Log-Verbose "Check if CPU architecture is defined in config file!"
         if($config.OSArch -eq $null -or $config.OSArch -eq "")
         {
-            Write-NodeVerbose "OSArch is not defined in config file determine CPU architecture!"
+            Log-Verbose "OSArch is not defined in config file determine CPU architecture!"
             $config.OSArch = Get-CPUArchitecture
-            Write-NodeVerbose "Current os architecture: $($config.OSArch)"
-        }             
+            Log-Verbose "Current os architecture: $($config.OSArch)"
+        }
         $script:config = $config
     }
     else
     {
-        Write-NodeVerbose "Variable script:config is present, serving from cache!"
+        Log-Verbose "Variable script:config is present, serving from cache!"
     }
 
     Write-Output $script:config
@@ -242,25 +252,25 @@ function Check-PSNodeEnv
     [CmdletBinding()]
     Param()
 
-    Write-NodeVerbose "Get configuration object"
+    Log-Verbose "Get configuration object"
     $config = Get-PSNodeConfig
 
-    Write-NodeVerbose "Checking NodeHome path: $($config.NodeHome)"
+    Log-Verbose "Checking NodeHome path: $($config.NodeHome)"
     if(!(Test-Path $config.NodeHome))
     {
-        Write-NodeVerbose "Home Path not set: creating new home folder: $($config.NodeHome)"
+        Log-Verbose "Home Path not set: creating new home folder: $($config.NodeHome)"
         New-Item -Path $config.NodeHome -ItemType Directory | Out-Null
     }
 
-    Write-NodeVerbose "Check if path contains NodeHome: $($config.NodeHome)"
+    Log-Verbose "Check if path contains NodeHome: $($config.NodeHome)"
     if((Get-Path) -notcontains "$($config.NodeHome)")
     {
-        Write-NodeVerbose "NodeHome not set: add $($config.NodeHome) to the user path"
+        Log-Verbose "NodeHome not set: add $($config.NodeHome) to the user path"
         Add-Path "$($config.NodeHome)" "User" | Out-Null
     }
     else
     {
-        Write-NodeVerbose "NodeHome is already created in path!"
+        Log-Verbose "NodeHome is already created in path!"
     }
 
 }
@@ -290,7 +300,7 @@ function Get-CPUArchitecture
                 $true="x64";
                 $false="";
             }[(Get-CimInstance Win32_OperatingSystem).OSARchitecture -eq "64-bit"])
-      
+
    Write-Output $arch
 }
 
@@ -319,7 +329,7 @@ function Get-Path
     (
         [ValidateSet("User", "Machine", "Process")]
         [String]$Target="Process"
-    )  
+    )
     Write-Output ([Array]([System.Environment]::GetEnvironmentVariable("PATH", $Target)) -split ";")
 }
 
@@ -367,7 +377,7 @@ function Remove-Path
     Write-Output ($env:Path = ((Get-Path Machine) + (Get-Path User) -join ";"))
 }
 
-function Write-NodeVerbose
+function Log-Verbose
 {
     Param
     (
@@ -375,10 +385,10 @@ function Write-NodeVerbose
         [AllowEmptyString()]
         [String]$LogMessage
     )
-    
+
     $Stack = Get-PSCallStack
-    
-    Write-Verbose "$($Stack[1].Command): $LogMessage"
+
+    Log-Verbose "$($Stack[1].Command): $LogMessage"
 }
 
 #---------------------------------------------------------
