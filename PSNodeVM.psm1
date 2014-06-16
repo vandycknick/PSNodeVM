@@ -58,7 +58,7 @@ function Start-Node
     Param
     (
         [ValidatePattern("^[\d]+\.[\d]+.[\d]+$|latest")]
-        [ValidateScript({(Get-NodeVersion -Installed) -contains "v$($_)" -or $_ -eq "latest" })]
+        [ValidateScript({(Get-NodeVersion -Installed) -contains "$($_)" -or $_ -eq "latest" })]
         [String]$Version="latest",
         [String]$Params
     )
@@ -111,8 +111,11 @@ function Get-NodeVersion
             $latest = Write-Output (."$((Get-PSNodeConfig).NodeHome)latest\node.exe"  "-v")
             Log-Verbose "Latest version: $latest"
             $Output = [Array] "latest -> $([regex]::Match($latest, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value)"
-            Log-Verbose "Transform local versions array (vX.X.X) to (X.X.X)"
-            $Output += ($localVer | % { ([regex]::Match($_, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value) })
+            Log-Verbose "Transform local versions array (vX.X.X) to (X.X.X), sort descending"
+            $Output += ($localVer | 
+                        % { [System.Version]([regex]::Match($_, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value) } |
+                        Sort-Object -Descending -Unique |
+                        %{ $_.toString()})
         }
         else{
             $Output = (node -v)
@@ -431,6 +434,12 @@ $nodeVersions = @()
 $config = $null
 
 #-------------------------------------------------
+# Create aliases
+#---------------------------------------------------------
+Set-Alias -Name gnv -Value Get-NodeVersion
+Set-Alias -Name in -Value Install-Node
+
+#-------------------------------------------------
 # Export global functions values and aliases
 #---------------------------------------------------------
 Export-ModuleMember -Function Install-Node
@@ -440,4 +449,7 @@ Export-ModuleMember -Function Set-NodeVersion
 
 Export-ModuleMember -Function Install-NPM
 Export-ModuleMember -Function Get-NPMVersions
+
+Export-ModuleMember -Alias gnv
+Export-ModuleMember -Alias in
 #---------------------------------------------------------
