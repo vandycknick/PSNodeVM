@@ -436,6 +436,7 @@ $config = $null
 # Create aliases
 #---------------------------------------------------------
 Set-Alias -Name gnv -Value Get-NodeVersion
+Set-Alias -Name snv -Value Set-NodeVersion
 Set-Alias -Name in -Value Install-Node
 
 #-------------------------------------------------
@@ -450,5 +451,6 @@ Export-ModuleMember -Function Install-NPM
 Export-ModuleMember -Function Get-NPMVersions
 
 Export-ModuleMember -Alias gnv
+Export-ModuleMember -Alias snv
 Export-ModuleMember -Alias in
 #---------------------------------------------------------
