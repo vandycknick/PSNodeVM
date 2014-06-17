@@ -148,15 +148,23 @@ function Get-NPMVersions
     Param()
     Log-Verbose "Get node configuration"
     $config = Get-PSNodeConfig
-
-    Log-Verbose "Get all npm versions from $($config.NPMWeb)"
-    $npmVersions = ([regex]::Matches((Fetch-HTTP $config.NPMWeb), '(?:href="(npm-(?<NPMVersion>(?:[\d]{1,3}\.){2}(?:[\d]{1,3}))\.zip)")') |
-                   %{ [System.Version] $_.Groups["NPMVersion"].Value } |
-                   Sort-Object -Descending -Unique |
-                   %{ $_.toString()})
+	
+	if($script:npmVersions.Count -le 0)
+    {
+		Log-Verbose "NPMVersions variable not in cache!"
+		Log-Verbose "Get all npm versions from $($config.NPMWeb)"
+		$script:npmVersions = ([regex]::Matches((Fetch-HTTP $config.NPMWeb), '(?:href="(npm-(?<NPMVersion>(?:[\d]{1,3}\.){2}(?:[\d]{1,3}))\.zip)")') |
+						   %{ [System.Version] $_.Groups["NPMVersion"].Value } |
+						   Sort-Object -Descending -Unique |
+						   %{ $_.toString()})
+	}
+	else
+	{
+		Log-Verbose "NPMVersions already present, serving from cache!"
+	}
     
-    Log-Verbose "Return all received versions!"
-    Write-Output $npmVersions
+    Log-Verbose "Return all npm versions!"
+    Write-Output $script:npmVersions
 }
 
 function Install-Npm
@@ -430,6 +438,7 @@ function Log-Verbose
 #---------------------------------------------------------
 $nodeExe = "node.exe"
 $nodeVersions = @()
+$npmVersions = @()
 $config = $null
 
 #-------------------------------------------------
