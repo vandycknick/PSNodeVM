@@ -68,7 +68,6 @@ function Start-Node
     ."$((Get-PSNodeConfig).NodeHome)$($nodeVersion)\node.exe" $($Params -split " ")
 }
 
-#TO-DO: Implement Set-NodeVersion function -> and export the function
 function Set-NodeVersion
 {
     [CmdletBinding()]
