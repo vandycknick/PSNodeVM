@@ -199,7 +199,7 @@ function Install-Npm
 
         if($Version -eq $null -or $Version -eq "")
         {
-            $npmLatest = $npmVersions[0]
+            $npmLatest = (Get-NPMVersions)[0]
         }
         else
         {
@@ -222,8 +222,6 @@ function Install-Npm
 
         Log-Verbose "Cleanup zip file: $($config.NodeHome)\$zipFile"
         Remove-Item "$($config.NodeHome)\$zipFile" -Force  -ErrorAction SilentlyContinue
-
-        Write-Output $npmVersions
    }
 }
 
