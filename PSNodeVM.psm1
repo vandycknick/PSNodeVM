@@ -104,14 +104,14 @@ function Get-NodeVersion
     {
         Log-Verbose "ParemeterSetName == InstalledVersions"
         if($Installed -eq $true){
-            
-            $localVer += [Array]((ls "$($config.NodeHome)" -Directory -Filter "v*").Name)            
+
+            $localVer += [Array]((ls "$($config.NodeHome)" -Directory -Filter "v*").Name)
             Log-Verbose "Get installed latest version."
             $latest = Write-Output (."$((Get-PSNodeConfig).NodeHome)latest\node.exe"  "-v")
             Log-Verbose "Latest version: $latest"
             $Output = [Array] "latest -> $([regex]::Match($latest, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value)"
             Log-Verbose "Transform local versions array (vX.X.X) to (X.X.X), sort descending"
-            $Output += ($localVer | 
+            $Output += ($localVer |
                         % { [System.Version]([regex]::Match($_, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value) } |
                         Sort-Object -Descending -Unique |
                         %{ $_.toString()})
@@ -126,8 +126,17 @@ function Get-NodeVersion
 
         if($script:nodeVersions.Count -le 0)
         {
+
+            $oldProgressRef = $ProgressPreference
+
+            Log-Verbose "Turn of progres updates: `$ProgressPreference = $ProgressPreference "
+            $ProgressPreference = SilentlyContinue
+
             Log-Verbose "Getting all node versions from $($config.NodeWeb)"
             $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content
+
+            Log-Verbose "Reset `$ProgressPreference to original value = $oldProgressRef"
+            $ProgressPreference = $oldProgressRef
 
             $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeVersion>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') |
                                    %{ [System.Version] $_.Groups["NodeVersion"].Value } |
@@ -148,7 +157,7 @@ function Get-NPMVersions
     Param()
     Log-Verbose "Get node configuration"
     $config = Get-PSNodeConfig
-	
+
 	if($script:npmVersions.Count -le 0)
     {
 		Log-Verbose "NPMVersions variable not in cache!"
@@ -162,7 +171,7 @@ function Get-NPMVersions
 	{
 		Log-Verbose "NPMVersions already present, serving from cache!"
 	}
-    
+
     Log-Verbose "Return all npm versions!"
     Write-Output $script:npmVersions
 }
@@ -438,6 +447,11 @@ $nodeExe = "node.exe"
 $nodeVersions = @()
 $npmVersions = @()
 $config = $null
+
+#-------------------------------------------------
+# Get all node version on module load
+#---------------------------------------------------------
+Get-NodeVersion -Online
 
 #-------------------------------------------------
 # Create aliases
