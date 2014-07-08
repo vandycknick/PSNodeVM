@@ -126,17 +126,8 @@ function Get-NodeVersion
 
         if($script:nodeVersions.Count -le 0)
         {
-
-            $oldProgressRef = $ProgressPreference
-
-            Log-Verbose "Turn of progres updates: `$ProgressPreference = $ProgressPreference "
-            $ProgressPreference = SilentlyContinue
-
             Log-Verbose "Getting all node versions from $($config.NodeWeb)"
             $nodeVPage = (Fetch-HTTP -Uri "$($config.NodeWeb)").Content
-
-            Log-Verbose "Reset `$ProgressPreference to original value = $oldProgressRef"
-            $ProgressPreference = $oldProgressRef
 
             $script:nodeVersions = ([regex]::Matches($nodeVPage, '(?:href="v(?<NodeVersion>(?:[\d]{1,3}\.){2}[\d]{1,3})\/")') |
                                    %{ [System.Version] $_.Groups["NodeVersion"].Value } |
@@ -336,12 +327,20 @@ function Fetch-HTTP
         [String]$OutFile
     )
 
+    $oldProgressRef = $ProgressPreference
+
+    Log-Verbose "Turn of progres updates: `$ProgressPreference = $ProgressPreference "
+    $ProgressPreference = "SilentlyContinue"
+
     if($env:HTTP_PROXY -eq $null){
         Invoke-WebRequest -Uri $Uri -OutFile $OutFile
     }
     else{
         Invoke-WebRequest -Uri $Uri -OutFile $OutFile -Proxy $env:HTTP_PROXY
     }
+
+    Log-Verbose "Reset `$ProgressPreference to original value = $oldProgressRef"
+    $ProgressPreference = $oldProgressRef
 }
 
 function Get-CPUArchitecture
