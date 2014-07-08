@@ -450,7 +450,31 @@ $config = $null
 #-------------------------------------------------
 # Get all node version on module load
 #---------------------------------------------------------
-Get-NodeVersion -Online
+
+
+#Tabcompletion
+if (-not $global:options) { $global:options = @{CustomArgumentCompleters = @{};NativeArgumentCompleters = @{}}}
+
+$completion_NodeOnline = {
+    param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameter)
+
+    Get-NodeVersion -Online | ?{ $_ -like "$wordToComplete*" } | % {
+        New-Object System.Management.Automation.CompletionResult $_, $_, 'ParameterValue', ('NodeJS Version: {0}' -f $_)
+    }
+}
+$
+$completion_NodeInstalled = {
+    param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameter)
+
+    Get-NodeVersion -Installed | ?{ $_ -like "$wordToComplete*" } | % {
+        New-Object System.Management.Automation.CompletionResult $_, $_, 'ParameterValue', ('NodeJS Version: {0}' -f $_)
+    }
+}
+
+$global:options['CustomArgumentCompleters']['Install-Node:Version'] = $completion_NodeOnline
+$global:options['CustomArgumentCompleters']['Set-NodeVersion:Version'] = $completion_NodeInstalled
+
+$function:tabexpansion2 = $function:tabexpansion2 -replace 'End\r\n{','End { if ($null -ne $options) { $options += $global:options} else {$options = $global:options}'
 
 #-------------------------------------------------
 # Create aliases
