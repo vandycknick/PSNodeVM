@@ -463,15 +463,8 @@ Set-Alias -Name in -Value Install-Node
 #-------------------------------------------------
 # Export global functions values and aliases
 #---------------------------------------------------------
-Export-ModuleMember -Function Install-Node
-Export-ModuleMember -Function Start-Node
-Export-ModuleMember -Function Get-NodeVersion
-Export-ModuleMember -Function Set-NodeVersion
+Export-ModuleMember -Alias * -Function Install-Node, Start-Node, Get-NodeVersion, Set-NodeVersion,
+                                        Install-NPM, Get-NPMVersions
 
-Export-ModuleMember -Function Install-NPM
-Export-ModuleMember -Function Get-NPMVersions
 
-Export-ModuleMember -Alias gnv
-Export-ModuleMember -Alias snv
-Export-ModuleMember -Alias in
 #---------------------------------------------------------
