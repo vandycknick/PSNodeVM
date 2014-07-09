@@ -17,8 +17,8 @@ function Install-Node
         $config = Get-PSNodeConfig
 
         Log-Verbose "Check the PSNodeVM current environment with config"
+        Log-Verbose "Run function: Check-PSNodeEnv"
         Check-PSNodeEnv
-
 
         $versionCopy = @{$true="latest"; $false="v$($Version)"}[$Version -eq "latest"]
 
@@ -35,6 +35,7 @@ function Install-Node
             New-Item $installPath -ItemType Directory | Out-Null
         }
 
+        Log-Verbose "Run function: Fetch-HTTP"
         Fetch-HTTP -Uri $nodeUri -OutFile $outFile
 
 
@@ -50,7 +51,7 @@ function Install-Node
 }
 
 #TO-DO: Implement uninstall-node function -> and export as global function
-function Uninstall-Node{}
+function Remove-Node{}
 function Start-Node
 {
 
@@ -228,11 +229,11 @@ function Install-Npm
 #---------------------------------------------------------
 # Node and npm shorthand commands
 #---------------------------------------------------------
-#function node
-#{
-#    #Split $args variable to different string -> otherwise $args will be interpreted as one parameter
-#    ."$((Get-PSNodeConfig).NodeHome)latest\node.exe" $($args -split " ")
-#}
+function node
+{
+    #Split $args variable to different string -> otherwise $args will be interpreted as one parameter
+    ."$((Get-PSNodeConfig).NodeHome)latest\node.exe" $($args -split " ")
+}
 
 #function npm
 #{
@@ -329,28 +330,29 @@ function Fetch-HTTP
 
     $oldProgressRef = $ProgressPreference
 
-    Log-Verbose "Turn of progres updates: `$ProgressPreference = $ProgressPreference "
+    Log-Verbose "Turn of progress updates: original `$ProgressPreference = $ProgressPreference "
     $ProgressPreference = "SilentlyContinue"
+    Log-Verbose "Turn of progress updates: new `$ProgressPreference = $ProgressPreference "
 
-    if($env:HTTP_PROXY -eq $null){
-        Invoke-WebRequest -Uri $Uri -OutFile $OutFile
+    $params = @{
+        "Uri"= $Uri;
+        "OutFile"= $OutFile;
+        "Proxy"= @{ $true=""; $false="$env:HTTP_PROXY"; }[$env:HTTP_PROXY -eq $null];
     }
-    else{
-        Invoke-WebRequest -Uri $Uri -OutFile $OutFile -Proxy $env:HTTP_PROXY
-    }
+
+    Log-Verbose "Created parameters hash object: $(ConvertTo-Json $params -Compress)"
+
+    $Output = Invoke-WebRequest @params
 
     Log-Verbose "Reset `$ProgressPreference to original value = $oldProgressRef"
     $ProgressPreference = $oldProgressRef
+
+    Write-Output $Output
 }
 
 function Get-CPUArchitecture
 {
-   $arch = (@{
-                $true="x64";
-                $false="";
-            }[(Get-CimInstance Win32_OperatingSystem).OSARchitecture -eq "64-bit"])
-
-   Write-Output $arch
+   Write-Output (@{ $true="x64"; $false=""; }[(Get-CimInstance Win32_OperatingSystem).OSARchitecture -eq "64-bit"])
 }
 
 function Extract-Zip
@@ -462,7 +464,7 @@ $completion_NodeOnline = {
         New-Object System.Management.Automation.CompletionResult $_, $_, 'ParameterValue', ('NodeJS Version: {0}' -f $_)
     }
 }
-$
+
 $completion_NodeInstalled = {
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameter)
 
@@ -474,7 +476,11 @@ $completion_NodeInstalled = {
 $global:options['CustomArgumentCompleters']['Install-Node:Version'] = $completion_NodeOnline
 $global:options['CustomArgumentCompleters']['Set-NodeVersion:Version'] = $completion_NodeInstalled
 
-$function:tabexpansion2 = $function:tabexpansion2 -replace 'End\r\n{','End { if ($null -ne $options) { $options += $global:options} else {$options = $global:options}'
+#Enable custum tabexpansion and cache default reference
+$function:tabexpansion2 = ($tabexpansion2original = $function:tabexpansion2) -replace 'End\r\n{','End { if ($null -ne $options) { $options += $global:options} else {$options = $global:options}'
+
+#Restore default tabexpansion
+$MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = { $function:tabexpansion2 = $tabexpansion2original }
 
 #-------------------------------------------------
 # Create aliases
@@ -486,8 +492,7 @@ Set-Alias -Name in -Value Install-Node
 #-------------------------------------------------
 # Export global functions values and aliases
 #---------------------------------------------------------
-Export-ModuleMember -Alias * -Function Install-Node, Start-Node, Get-NodeVersion, Set-NodeVersion,
-                                        Install-NPM, Get-NPMVersions
+Export-ModuleMember -Alias * -Function Install-Node, Start-Node, Get-NodeVersion, Set-NodeVersion, Install-NPM
 
-
-#---------------------------------------------------------
+#Module members for testing
+#Export-ModuleMember -Function Fetch-HTTP
