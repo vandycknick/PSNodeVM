@@ -50,8 +50,36 @@ function Install-Node
     }
 }
 
-#TO-DO: Implement uninstall-node function -> and export as global function
-function Remove-Node{}
+function Remove-Node 
+{
+    [CmdletBinding()]
+    Param
+    (
+        [ValidatePattern("^[\d]+\.[\d]+.[\d]+$")]
+        [ValidateScript({(Get-NodeVersion -Online) -contains "$($_)" })]
+        [String]$Version = ""
+    )
+
+    Begin
+    {
+        Log-Verbose "Preparing prerequisites!"
+        $config = Get-PSNodeConfig
+
+        Log-Verbose "Check the PSNodeVM current environment with config"
+        Log-Verbose "Run function: Check-PSNodeEnv"
+        Check-PSNodeEnv
+    }
+    Process
+    {
+        $nodeFolder = "$($config.NodeHome)v$Version\"
+
+        Log-Verbose "Removing node version: $Version"
+        Log-Verbose "Removing folder: $nodeFolder"
+
+        Remove-Item $nodeFolder -Recurse -Force     
+    }
+}
+
 function Start-Node
 {
 
@@ -449,12 +477,9 @@ $nodeVersions = @()
 $npmVersions = @()
 $config = $null
 
-#-------------------------------------------------
-# Get all node version on module load
 #---------------------------------------------------------
-
-
-#Tabcompletion
+# Tabcompletion
+#---------------------------------------------------------
 if (-not $global:options) { $global:options = @{CustomArgumentCompleters = @{};NativeArgumentCompleters = @{}}}
 
 $completion_NodeOnline = {
@@ -474,13 +499,18 @@ $completion_NodeInstalled = {
 }
 
 $global:options['CustomArgumentCompleters']['Install-Node:Version'] = $completion_NodeOnline
+$global:options['CustomArgumentCompleters']['Remove-Node:Version'] = $completion_NodeInstalled
+$global:options['CustomArgumentCompleters']['Start-Node:Version'] = $completion_NodeInstalled
 $global:options['CustomArgumentCompleters']['Set-NodeVersion:Version'] = $completion_NodeInstalled
 
 #Enable custum tabexpansion and cache default reference
 $function:tabexpansion2 = ($tabexpansion2original = $function:tabexpansion2) -replace 'End\r\n{','End { if ($null -ne $options) { $options += $global:options} else {$options = $global:options}'
 
 #Restore default tabexpansion
-$MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = { $function:tabexpansion2 = $tabexpansion2original }
+$MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = { 
+    $function:tabexpansion2 = $tabexpansion2original 
+    $global:options = $null
+}
 
 #-------------------------------------------------
 # Create aliases
@@ -488,11 +518,13 @@ $MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = { $function:tabexpansion2 
 Set-Alias -Name gnv -Value Get-NodeVersion
 Set-Alias -Name snv -Value Set-NodeVersion
 Set-Alias -Name in -Value Install-Node
+Set-Alias -Name rmn -Value Remove-Node
+Set-Alias -Name psnode -Value Start-Node
 
 #-------------------------------------------------
 # Export global functions values and aliases
 #---------------------------------------------------------
-Export-ModuleMember -Alias * -Function Install-Node, Start-Node, Get-NodeVersion, Set-NodeVersion, Install-NPM
+Export-ModuleMember -Alias * -Function Install-Node, Remove-Node, Start-Node, Get-NodeVersion, Set-NodeVersion, Install-NPM
 
 #Module members for testing
 #Export-ModuleMember -Function Fetch-HTTP
