@@ -462,7 +462,7 @@ $completion_NodeOnline = {
         New-Object System.Management.Automation.CompletionResult $_, $_, 'ParameterValue', ('NodeJS Version: {0}' -f $_)
     }
 }
-$
+
 $completion_NodeInstalled = {
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameter)
 
