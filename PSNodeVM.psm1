@@ -50,7 +50,7 @@ function Install-Node
     }
 }
 
-function Remove-Node 
+function Uninstall-Node 
 {
     [CmdletBinding()]
     Param
@@ -502,7 +502,7 @@ $completion_NodeInstalled = {
 }
 
 $global:options['CustomArgumentCompleters']['Install-Node:Version'] = $completion_NodeOnline
-$global:options['CustomArgumentCompleters']['Remove-Node:Version'] = $completion_NodeInstalled
+$global:options['CustomArgumentCompleters']['Uninstall-Node:Version'] = $completion_NodeInstalled
 $global:options['CustomArgumentCompleters']['Start-Node:Version'] = $completion_NodeInstalled
 $global:options['CustomArgumentCompleters']['Set-NodeVersion:Version'] = $completion_NodeInstalled
 
@@ -521,13 +521,13 @@ $MyInvocation.MyCommand.ScriptBlock.Module.OnRemove = {
 Set-Alias -Name gnv -Value Get-NodeVersion
 Set-Alias -Name snv -Value Set-NodeVersion
 Set-Alias -Name in -Value Install-Node
-Set-Alias -Name rmn -Value Remove-Node
+Set-Alias -Name uin -Value Uninstall-Node
 Set-Alias -Name psnode -Value Start-Node
 
 #-------------------------------------------------
 # Export global functions values and aliases
 #---------------------------------------------------------
-Export-ModuleMember -Alias * -Function Install-Node, Remove-Node, Start-Node, Get-NodeVersion, Set-NodeVersion, Install-NPM
+Export-ModuleMember -Alias * -Function Install-Node, Uninstall-Node, Start-Node, Get-NodeVersion, Set-NodeVersion, Install-NPM
 
 #Module members for testing
 #Export-ModuleMember -Function Fetch-HTTP
