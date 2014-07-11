@@ -134,16 +134,19 @@ function Get-NodeVersion
         Log-Verbose "ParemeterSetName == InstalledVersions"
         if($Installed -eq $true){
 
-            $localVer += [Array]((ls "$($config.NodeHome)" -Directory -Filter "v*").Name)
+            $localVer = [Array]((Get-ChildItem "$($config.NodeHome)" -Directory -Filter "v*").Name)
             Log-Verbose "Get installed latest version."
             $latest = Write-Output (."$((Get-PSNodeConfig).NodeHome)latest\node.exe"  "-v")
             Log-Verbose "Latest version: $latest"
-            $Output = [Array] "latest -> $([regex]::Match($latest, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value)"
+            $Output = [Array] "$([regex]::Match($latest, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value) (latest)"
             Log-Verbose "Transform local versions array (vX.X.X) to (X.X.X), sort descending"
-            $Output += ($localVer |
-                        % { [System.Version]([regex]::Match($_, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value) } |
-                        Sort-Object -Descending -Unique |
-                        %{ $_.toString()})
+            if($localVer.Length -gt 0)
+            {
+                $Output += ($localVer |
+                            % { [System.Version]([regex]::Match($_, "v(?<Version>[\d]+\.[\d]+.[\d]+)$").Groups["Version"].Value) } |
+                            Sort-Object -Descending -Unique |
+                            %{ $_.toString()})
+            }
         }
         else{
             $Output = (node -v)
@@ -362,10 +365,10 @@ function Fetch-HTTP
     $ProgressPreference = "SilentlyContinue"
     Log-Verbose "Turn of progress updates: new `$ProgressPreference = $ProgressPreference "
 
-    $params = @{
-        "Uri"= $Uri;
-        "OutFile"= $OutFile;
-        "Proxy"= @{ $true=""; $false="$env:HTTP_PROXY"; }[$env:HTTP_PROXY -eq $null];
+    $params = @{ "Uri"= $Uri; "OutFile"= $OutFile; }
+
+    if($env:HTTP_PROXY -ne $null){
+        $params.Proxy = $env:HTTP_PROXY
     }
 
     Log-Verbose "Created parameters hash object: $(ConvertTo-Json $params -Compress)"
