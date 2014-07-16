@@ -530,4 +530,4 @@ Set-Alias -Name psnode -Value Start-Node
 Export-ModuleMember -Alias * -Function Install-Node, Uninstall-Node, Start-Node, Get-NodeVersion, Set-NodeVersion, Install-NPM
 
 #Module members for testing
-#Export-ModuleMember -Function Fetch-HTTP
+Export-ModuleMember -Function Get-NPMVersions
